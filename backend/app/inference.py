@@ -6,22 +6,16 @@ Load pre-trained ensemble (XGB + LGBM + RF + GB) and run anomaly detection.
 Designed for FastAPI /analyze endpoint integration.
 """
 
-import joblib
-import pandas as pd
-import numpy as np
-from typing import List, Dict, Optional
+import importlib
 import json
 import os
 
-try:
-    from xgboost import XGBClassifier
-except ImportError:
-    pass
+import joblib
+import numpy as np
+import pandas as pd
 
-try:
-    from lightgbm import LGBMClassifier
-except ImportError:
-    pass
+_xgb_available = importlib.util.find_spec("xgboost") is not None
+_lgbm_available = importlib.util.find_spec("lightgbm") is not None
 
 # =============================================================================
 # LOAD MODELS (call once at server startup)
@@ -37,7 +31,7 @@ TRAIN_STATS = None
 
 
 def load_models(model_dir: str = "models"):
-    global MODELS, SCALER, FEATURES, METADATA
+    global SCALER, FEATURES, METADATA
     global UNSUP_MODELS, FIT_STATS, TRAIN_STATS, _LOADED
 
     for name in ["rf", "gb", "xgb", "lgbm"]:
@@ -96,7 +90,7 @@ def load_models(model_dir: str = "models"):
 # =============================================================================
 # FEATURE ENGINEERING (25 features, must match training)
 # =============================================================================
-def engineer_features(df: pd.DataFrame, fit_stats: Optional[Dict] = None) -> pd.DataFrame:
+def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.DataFrame:
     df = df.copy()
 
     df["amount_log"] = np.log1p(df["amount"])
@@ -264,7 +258,7 @@ def _get_triggered_rules(row, stats):
 # =============================================================================
 # MAIN INFERENCE FUNCTION
 # =============================================================================
-def detect_anomalies(transactions: List[Dict], threshold: float = None) -> List[Dict]:
+def detect_anomalies(transactions: list[dict], threshold: float | None = None) -> list[dict]:
     if not _LOADED:
         load_models()
 
