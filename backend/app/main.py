@@ -3,7 +3,7 @@ import io
 from contextlib import asynccontextmanager
 
 import pandas as pd
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import (
@@ -17,10 +17,12 @@ from app.database import (
     insert_narrative,
     insert_transactions,
     update_batch_status,
+    update_narrative_audio,
 )
 from app.gemini import generate_narrative
 from app.inference import detect_anomalies, load_models
 from app.schemas import AnomalyResult, BatchResponse, HealthResponse, NarrativeResponse
+from app.tts import generate_audio
 
 
 @asynccontextmanager
@@ -160,5 +162,25 @@ async def get_narrative(anomaly_id: int):
 
 
 @app.get("/api/narratives/{anomaly_id}/audio")
-async def get_narrative_audio(anomaly_id: str):
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+async def get_narrative_audio(anomaly_id: int):
+    narrative = await asyncio.to_thread(get_narrative_by_anomaly_id, anomaly_id)
+
+    if not narrative:
+        anomaly = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
+        if not anomaly:
+            raise HTTPException(status_code=404, detail="Anomaly not found")
+        text = await asyncio.to_thread(generate_narrative, anomaly)
+        nid = await asyncio.to_thread(insert_narrative, anomaly_id, text)
+        narrative = {"narrative_id": nid, "text": text, "audio_data": None}
+    else:
+        text = narrative["text"]
+
+    if narrative.get("audio_data"):
+        return Response(content=narrative["audio_data"], media_type="audio/mpeg")
+
+    audio = await asyncio.to_thread(generate_audio, text)
+    if audio is None:
+        raise HTTPException(status_code=501, detail="TTS not configured (set ELEVENLABS_API_KEY)")
+
+    await asyncio.to_thread(update_narrative_audio, narrative["narrative_id"], audio)
+    return Response(content=audio, media_type="audio/mpeg")

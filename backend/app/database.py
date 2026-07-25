@@ -218,6 +218,19 @@ def insert_narrative(anomaly_id: int, text: str) -> int:
             conn.close()
 
 
+def update_narrative_audio(narrative_id: int, audio_data: bytes) -> None:
+    conn = _get_conn()
+    try:
+        conn.execute(
+            "UPDATE narratives SET audio_data = ? WHERE narrative_id = ?",
+            (audio_data, narrative_id),
+        )
+        conn.commit()
+    finally:
+        if not _USE_SQLITE:
+            conn.close()
+
+
 def get_batch_status(batch_id: str) -> dict | None:
     conn = _get_conn()
     try:
