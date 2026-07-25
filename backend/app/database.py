@@ -49,11 +49,16 @@ def _get_auth_conn() -> sqlite3.Connection:
 
 def init_db():
     _get_auth_conn()
-    vs_ok = vector_store.init_vector_store()
-    if vs_ok:
+    # Try to initialize VectorAI (Actian) as primary; if it fails we'll use SQLite fallback
+    try:
+        vector_store.init_vector_store()
+    except Exception:
+        # init_vector_store handles its own logging; ensure we continue with SQLite
+        pass
+    if vector_store.is_vectorai_available():
         print("Database: Actian VectorAI PRIMARY — SQLite for auth only")
     else:
-        print("Database: SQLite FALLBACK — VectorAI unavailable")
+        print("Database: VectorAI unavailable — using SQLite fallback for vector data")
 
 
 # ── User operations (always SQLite, thread-safe) ──

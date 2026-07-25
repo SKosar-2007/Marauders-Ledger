@@ -1,0 +1,152 @@
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;background-image:radial-gradient(#cfc4c5 0.5px,transparent 0.5px);background-size:24px 24px;}}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={theme:{extend:{"colors":{"on-background":"#1a1c1c","background":"#f9f9f9","primary":"#000000","on-primary":"#ffffff","secondary-container":"#fcd400","on-secondary-container":"#6e5c00","surface-container-lowest":"#ffffff","outline":"#7e7576"},"spacing":{"border-width":"3px","hard-shadow-offset":"6px"},"fontFamily":{"headline-lg":["Space Grotesk"],"label-caps":["JetBrains Mono"]}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..900&family=Space+Grotesk:wght@100..900&display=swap" rel="stylesheet"/></head><body class="bg-background flex items-center justify-center min-h-screen p-8"><main class="w-full max-w-md bg-white border-border-width border-primary p-10 shadow-[hard-shadow-offset_hard-shadow-offset_0px_0px_rgba(0,0,0,1)]"><div class="flex flex-col w-full bg-background min-h-full">
+<!-- Header / Action Bar -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 pb-4 border-b-[3px] border-primary">
+<div class="flex flex-col gap-2">
+<h1 class="font-display text-display text-primary uppercase tracking-tighter mix-blend-difference">Access Control</h1>
+<div class="flex items-center gap-4">
+<span class="font-label-caps text-label-caps text-on-surface-variant bg-surface-container px-3 py-1 border-[3px] border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase">System Critical</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant px-2 uppercase border-[2px] border-outline">Zone 4: High-Sec</span>
+</div>
+</div>
+<div class="mt-6 md:mt-0 flex gap-4">
+<button class="relative group px-6 py-3 bg-secondary-container text-primary border-[3px] border-primary font-headline-md text-headline-md shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:translate-x-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all uppercase flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">admin_panel_settings</span>
+        Escalate
+      </button>
+</div>
+</div>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Left Column: Critical Toggles (4 cols) -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<!-- Lockdown Panel -->
+<div class="bg-surface-container-lowest border-[3px] border-primary shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-16 h-16 bg-error -mr-8 -mt-8 rotate-45 transform group-hover:scale-110 transition-transform"></div>
+<div class="flex justify-between items-start mb-6">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-primary uppercase mb-1">Global Override</span>
+<h2 class="font-headline-lg text-headline-lg text-primary uppercase leading-none">Lockdown</h2>
+</div>
+<span class="material-symbols-outlined text-4xl text-error" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-8">Initiate total facility lockdown. Revokes all active sessions and seals designated bulkheads.</p>
+<div class="flex items-center justify-between border-t-[3px] border-primary pt-4">
+<span class="font-data-lg text-data-lg text-primary uppercase">Status: <span class="text-on-tertiary-container bg-tertiary-fixed px-2 border-[2px] border-primary">Standby</span></span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox" value=""/>
+<div class="w-16 h-8 bg-surface-container border-[3px] border-primary peer-focus:outline-none peer-checked:bg-error peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-primary after:border-[3px] after:border-primary after:h-6 after:w-6 after:transition-all"></div>
+</label>
+</div>
+</div>
+<!-- Revoke Privileges Panel -->
+<div class="bg-surface-container-lowest border-[3px] border-primary shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-6 flex flex-col gap-4">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-3xl text-primary">block</span>
+<h2 class="font-headline-md text-headline-md text-primary uppercase">Revoke Access</h2>
+</div>
+<div class="relative w-full">
+<label class="absolute -top-3 left-4 bg-surface-container-lowest px-1 font-label-caps text-label-caps text-primary uppercase border-[2px] border-primary z-10">Target ID</label>
+<input class="w-full bg-surface-container-lowest border-[3px] border-primary p-4 font-data-lg text-data-lg text-primary uppercase placeholder-on-surface-variant/50 focus:outline-none focus:ring-0 focus:bg-surface-container" placeholder="e.g. USR-992-X" type="text"/>
+</div>
+<button class="w-full py-4 mt-2 bg-primary text-on-primary border-[3px] border-primary font-headline-md text-headline-md uppercase shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] hover:bg-error transition-colors">
+          Execute Purge
+        </button>
+</div>
+<!-- Health Indiciator -->
+<div class="bg-surface-container-lowest border-[3px] border-primary shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] p-6 flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Grid Integrity</span>
+<span class="font-data-lg text-data-lg text-primary uppercase">Nominal</span>
+</div>
+<div class="w-12 h-12 bg-primary border-[3px] border-primary flex items-center justify-center">
+<div class="w-6 h-6 bg-tertiary-fixed-dim animate-pulse"></div>
+</div>
+</div>
+</div>
+<!-- Right Column: Telemetry & Logs (8 cols) -->
+<div class="lg:col-span-8 flex flex-col gap-6">
+<!-- Telemetry Chart -->
+<div class="bg-surface-container-lowest border-[3px] border-primary shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+<div class="bg-primary px-6 py-3 border-b-[3px] border-primary flex justify-between items-center">
+<h2 class="font-headline-md text-headline-md text-on-primary uppercase m-0">Intervention Telemetry</h2>
+<span class="font-label-caps text-label-caps text-on-primary uppercase border-[2px] border-on-primary px-2">Last 24H</span>
+</div>
+<div class="p-6 relative h-64 w-full bg-surface-container bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+PHBhdGggZD0iTTAgMGgyNHYyNEgwVjB6bTIzIDIzdi0yMkgxdjIyaDIyeiIgZmlsbD0icmdiYSgwLDAsMCwwLjEpIi8+PC9zdmc+')] bg-repeat">
+<!-- Abstract Chart SVG -->
+<svg class="absolute inset-0 w-full h-full p-6" preserveaspectratio="none" viewbox="0 0 100 100">
+<!-- Grid lines -->
+<line opacity="0.3" stroke="#000" stroke-dasharray="2,2" stroke-width="0.5" x1="0" x2="100" y1="25" y2="25"></line>
+<line opacity="0.3" stroke="#000" stroke-dasharray="2,2" stroke-width="0.5" x1="0" x2="100" y1="50" y2="50"></line>
+<line opacity="0.3" stroke="#000" stroke-dasharray="2,2" stroke-width="0.5" x1="0" x2="100" y1="75" y2="75"></line>
+<!-- Data Area 1 (Primary) -->
+<polygon fill="#000" opacity="0.1" points="0,100 0,60 20,40 40,80 60,30 80,50 100,20 100,100"></polygon>
+<polyline fill="none" points="0,60 20,40 40,80 60,30 80,50 100,20" stroke="#000" stroke-width="1.5"></polyline>
+<!-- Data Area 2 (Cyan/Warning) -->
+<polyline fill="none" points="0,80 20,70 40,90 60,60 80,75 100,40" stroke="#00fbfb" stroke-width="2"></polyline>
+<!-- Threshold Line (Yellow) -->
+<line stroke="#fcd400" stroke-width="1.5" x1="0" x2="100" y1="35" y2="35"></line>
+<rect fill="#fcd400" height="8" width="15" x="0" y="31"></rect>
+<text fill="#000" font-family="JetBrains Mono" font-size="4" font-weight="bold" x="2" y="37">CRIT</text>
+</svg>
+</div>
+</div>
+<!-- Override Log -->
+<div class="bg-surface-container-lowest border-[3px] border-primary shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex-grow flex flex-col">
+<div class="bg-primary px-6 py-3 border-b-[3px] border-primary flex justify-between items-center">
+<h2 class="font-headline-md text-headline-md text-on-primary uppercase m-0">Override Log</h2>
+<span class="material-symbols-outlined text-on-primary">list_alt</span>
+</div>
+<div class="flex-grow overflow-auto">
+<!-- Log Header -->
+<div class="grid grid-cols-12 gap-4 px-6 py-3 border-b-[2px] border-primary/20 bg-surface-container">
+<div class="col-span-3 font-label-caps text-label-caps text-primary uppercase">Timestamp</div>
+<div class="col-span-2 font-label-caps text-label-caps text-primary uppercase">Actor</div>
+<div class="col-span-5 font-label-caps text-label-caps text-primary uppercase">Action</div>
+<div class="col-span-2 font-label-caps text-label-caps text-primary uppercase text-right">Result</div>
+</div>
+<!-- Log Entries -->
+<div class="flex flex-col">
+<!-- Entry 1 -->
+<div class="grid grid-cols-12 gap-4 px-6 py-4 border-b-[2px] border-primary/10 hover:bg-surface-container-low transition-colors items-center">
+<div class="col-span-3 font-data-sm text-data-sm text-on-surface-variant">2024.10.27_14:32:01</div>
+<div class="col-span-2 font-data-sm text-data-sm text-primary font-bold">ADM-X9</div>
+<div class="col-span-5 font-body-md text-body-md text-primary">Force_Close_Bulkhead_B</div>
+<div class="col-span-2 text-right">
+<span class="inline-block bg-primary text-on-primary font-label-caps text-label-caps px-2 py-1 border-[2px] border-primary">EXEC</span>
+</div>
+</div>
+<!-- Entry 2 -->
+<div class="grid grid-cols-12 gap-4 px-6 py-4 border-b-[2px] border-primary/10 hover:bg-surface-container-low transition-colors items-center bg-error-container/20">
+<div class="col-span-3 font-data-sm text-data-sm text-on-surface-variant">2024.10.27_13:15:44</div>
+<div class="col-span-2 font-data-sm text-data-sm text-error font-bold">SYS_AUTO</div>
+<div class="col-span-5 font-body-md text-body-md text-error font-bold">Revoke_Token_USR-442</div>
+<div class="col-span-2 text-right">
+<span class="inline-block bg-error text-on-error font-label-caps text-label-caps px-2 py-1 border-[2px] border-error">FAIL</span>
+</div>
+</div>
+<!-- Entry 3 -->
+<div class="grid grid-cols-12 gap-4 px-6 py-4 border-b-[2px] border-primary/10 hover:bg-surface-container-low transition-colors items-center">
+<div class="col-span-3 font-data-sm text-data-sm text-on-surface-variant">2024.10.27_09:00:12</div>
+<div class="col-span-2 font-data-sm text-data-sm text-primary font-bold">ADM-V2</div>
+<div class="col-span-5 font-body-md text-body-md text-primary">Escalate_Privilege_Z4</div>
+<div class="col-span-2 text-right">
+<span class="inline-block bg-secondary-container text-primary font-label-caps text-label-caps px-2 py-1 border-[2px] border-primary">WARN</span>
+</div>
+</div>
+<!-- Entry 4 -->
+<div class="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-surface-container-low transition-colors items-center">
+<div class="col-span-3 font-data-sm text-data-sm text-on-surface-variant">2024.10.26_23:59:59</div>
+<div class="col-span-2 font-data-sm text-data-sm text-primary font-bold">SYS_MAINT</div>
+<div class="col-span-5 font-body-md text-body-md text-primary">Routine_Key_Rotation</div>
+<div class="col-span-2 text-right">
+<span class="inline-block bg-primary text-on-primary font-label-caps text-label-caps px-2 py-1 border-[2px] border-primary">EXEC</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></main></body></html>

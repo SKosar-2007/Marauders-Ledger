@@ -34,7 +34,7 @@ def _ensure_filter_imports():
 
 VECTORAI_HOST = os.getenv("VECTORAI_HOST", "localhost")
 VECTORAI_PORT = os.getenv("VECTORAI_PORT", "6574")
-VECTORAI_LICENSE = os.getenv("VECTORAI_LICENSE_KEY", "")
+VECTORAI_LICENSE = os.getenv("VECTORAI_LICENSE_KEY") or os.getenv("VECTORAI_LICENSE") or ""
 
 _client = None
 _vectorai_available = False
@@ -47,7 +47,16 @@ _next_id_lock = threading.Lock()
 def _try_import():
     global _vectorai_available
     try:
-        from actian_vectorai import VectorAIClient
+        # Try the primary package name first, then a couple of likely variants
+        try:
+            from actian_vectorai import VectorAIClient  # type: ignore
+        except Exception:
+            try:
+                # some installs expose a slightly different module name
+                from actian_vectorai_client import VectorAIClient  # type: ignore
+            except Exception:
+                # final fallback: try the hyphenated package import alias
+                from actian_vectorai import VectorAIClient  # type: ignore
         _vectorai_available = True
         return True
     except ImportError:
@@ -68,6 +77,27 @@ def _get_fallback_conn() -> sqlite3.Connection:
             _fallback_conn.execute("PRAGMA journal_mode=WAL")
             _fallback_conn.execute("PRAGMA foreign_keys=ON")
             _init_fallback_tables(_fallback_conn)
+            # initialize internal id generator to avoid collisions
+            try:
+                cur = _fallback_conn.execute(
+                    "SELECT MAX(id) as m1 FROM vector_transactions"
+                ).fetchone()
+                m1 = cur["m1"] if cur and cur["m1"] is not None else 0
+                cur = _fallback_conn.execute(
+                    "SELECT MAX(id) as m2 FROM vector_anomalies"
+                ).fetchone()
+                m2 = cur["m2"] if cur and cur["m2"] is not None else 0
+                cur = _fallback_conn.execute(
+                    "SELECT MAX(id) as m3 FROM vector_narratives"
+                ).fetchone()
+                m3 = cur["m3"] if cur and cur["m3"] is not None else 0
+                maxid = max(m1, m2, m3, 0)
+                with _next_id_lock:
+                    global _next_id
+                    _next_id = maxid + 1
+            except Exception:
+                # non-fatal: keep default _next_id
+                pass
         return _fallback_conn
 
 
