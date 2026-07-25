@@ -8,8 +8,9 @@ import AnomalyCard from '../components/AnomalyCard'
 import FilterTabs from '../components/FilterTabs'
 import SpendChart from '../components/SpendChart'
 import { useAnomalies } from '../hooks/useAnomalies'
+import { useSpendingByDay } from '../hooks/useSpending'
 
-const MOCK_CHART_DATA = [
+const FALLBACK_CHART_DATA = [
   { day: 'Mon', amount: 450 }, { day: 'Tue', amount: 320 },
   { day: 'Wed', amount: 680, hasAnomaly: true }, { day: 'Thu', amount: 210 },
   { day: 'Fri', amount: 890, hasAnomaly: true }, { day: 'Sat', amount: 540 },
@@ -20,6 +21,11 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
   const { data: anomalies = [], isLoading } = useAnomalies('default')
+  const { data: spendingData } = useSpendingByDay('default')
+
+  const chartData = spendingData && spendingData.length > 0
+    ? spendingData.map((d) => ({ day: `Day ${d.day}`, amount: d.amount }))
+    : FALLBACK_CHART_DATA
 
   const filtered = activeTab === 'all' ? anomalies : anomalies.filter((a: any) => a.category === activeTab)
 
@@ -98,7 +104,7 @@ export default function Dashboard() {
                 filtered.map((a: any, i: number) => <AnomalyCard key={a.anomaly_id} anomaly={a} index={i} />)
               )}
             </div>
-            <SpendChart data={MOCK_CHART_DATA} />
+            <SpendChart data={chartData} />
           </div>
         </div>
       </main>

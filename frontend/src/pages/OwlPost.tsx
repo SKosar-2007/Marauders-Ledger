@@ -3,8 +3,9 @@ import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import SeverityBadge from '../components/SeverityBadge'
+import type { Severity } from '../types'
 
-const NOTIFICATIONS = [
+const NOTIFICATIONS: { id: number; title: string; body: string; time: string; severity: Severity; read: boolean }[] = [
   { id: 1, title: 'Dementor Alert', body: 'Unusual transaction detected at Gringotts Exchange. Immediate review recommended.', time: '2 hours ago', severity: 'high', read: false },
   { id: 2, title: 'Boggart Warning', body: 'Spending at Madam Malkin\'s exceeds your typical pattern by 40%.', time: '5 hours ago', severity: 'medium', read: false },
   { id: 3, title: 'Weekly Report', body: 'Your weekly financial summary is ready. 3 incidents flagged.', time: '1 day ago', severity: 'low', read: true },

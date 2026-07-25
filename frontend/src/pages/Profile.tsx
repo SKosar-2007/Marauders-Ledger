@@ -116,7 +116,7 @@ export default function Profile() {
             className="bg-[#faf3e6] rounded-xl p-6 shadow-md">
             <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Wizarding Skills</h3>
             <div className="grid grid-cols-3 gap-6">
-              {SKILLS.slice(0, 3).map((skill, i) => (
+              {SKILLS.slice(0, 3).map((skill) => (
                 <div key={skill.label} className="flex flex-col items-center">
                   <ProgressRing value={skill.level} size={72} strokeWidth={4} color={skill.color} />
                   <span className="font-crimson text-xs text-[#2c1810] mt-3 text-center">{skill.label}</span>
@@ -124,7 +124,7 @@ export default function Profile() {
               ))}
             </div>
             <div className="grid grid-cols-2 gap-6 mt-6">
-              {SKILLS.slice(3).map((skill, i) => (
+              {SKILLS.slice(3).map((skill) => (
                 <div key={skill.label} className="flex flex-col items-center">
                   <ProgressRing value={skill.level} size={72} strokeWidth={4} color={skill.color} />
                   <span className="font-crimson text-xs text-[#2c1810] mt-3 text-center">{skill.label}</span>

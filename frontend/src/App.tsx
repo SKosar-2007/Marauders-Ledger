@@ -1,14 +1,18 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AnimatePresence } from 'framer-motion'
 import { AppProvider } from './context/AppContext'
 import { ToastProvider } from './context/ToastContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import SidebarNav from './components/SidebarNav'
 import CommandPalette from './components/CommandPalette'
 import ScrollToTop from './components/ScrollToTop'
 import DarkModeToggle from './components/DarkModeToggle'
+import Onboarding from './components/Onboarding'
+import KeyboardShortcuts from './components/KeyboardShortcuts'
 
+const LoginPage = lazy(() => import('./pages/LoginPage'))
 const Landing = lazy(() => import('./pages/Landing'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const AnomalyDetail = lazy(() => import('./pages/AnomalyDetail'))
@@ -42,29 +46,36 @@ function Loading() {
   )
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth()
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
 function AnimatedRoutes() {
   const location = useLocation()
   return (
     <Suspense fallback={<Loading />}>
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/anomaly/:id" element={<AnomalyDetail />} />
-          <Route path="/ledger" element={<MischiefList />} />
-          <Route path="/vault" element={<Vault />} />
-          <Route path="/pensieve" element={<Pensieve />} />
-          <Route path="/owl-post" element={<OwlPost />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/daily-prophet" element={<DailyProphet />} />
-          <Route path="/owlry" element={<Owlry />} />
-          <Route path="/restricted-section" element={<RestrictedSection />} />
-          <Route path="/patronus-registry" element={<PatronusRegistry />} />
-          <Route path="/oea" element={<OEA />} />
-          <Route path="/room-of-requirement" element={<RoomOfWorkspace />} />
-          <Route path="/admin" element={<AdminSettings />} />
-          <Route path="/great-hall" element={<GreatHall />} />
-          <Route path="/dueling-arena" element={<DuelingArena />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<ProtectedRoute><Landing /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/anomaly/:id" element={<ProtectedRoute><AnomalyDetail /></ProtectedRoute>} />
+          <Route path="/ledger" element={<ProtectedRoute><MischiefList /></ProtectedRoute>} />
+          <Route path="/vault" element={<ProtectedRoute><Vault /></ProtectedRoute>} />
+          <Route path="/pensieve" element={<ProtectedRoute><Pensieve /></ProtectedRoute>} />
+          <Route path="/owl-post" element={<ProtectedRoute><OwlPost /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/daily-prophet" element={<ProtectedRoute><DailyProphet /></ProtectedRoute>} />
+          <Route path="/owlry" element={<ProtectedRoute><Owlry /></ProtectedRoute>} />
+          <Route path="/restricted-section" element={<ProtectedRoute><RestrictedSection /></ProtectedRoute>} />
+          <Route path="/patronus-registry" element={<ProtectedRoute><PatronusRegistry /></ProtectedRoute>} />
+          <Route path="/oea" element={<ProtectedRoute><OEA /></ProtectedRoute>} />
+          <Route path="/room-of-requirement" element={<ProtectedRoute><RoomOfWorkspace /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
+          <Route path="/great-hall" element={<ProtectedRoute><GreatHall /></ProtectedRoute>} />
+          <Route path="/dueling-arena" element={<ProtectedRoute><DuelingArena /></ProtectedRoute>} />
         </Routes>
       </AnimatePresence>
     </Suspense>
@@ -77,11 +88,15 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <AppProvider>
           <ToastProvider>
-            <SidebarNav />
-            <CommandPalette />
-            <ScrollToTop />
-            <DarkModeToggle />
-            <AnimatedRoutes />
+            <AuthProvider>
+              <SidebarNav />
+              <Onboarding />
+              <CommandPalette />
+              <ScrollToTop />
+              <DarkModeToggle />
+              <KeyboardShortcuts />
+              <AnimatedRoutes />
+            </AuthProvider>
           </ToastProvider>
         </AppProvider>
       </QueryClientProvider>

@@ -5,6 +5,12 @@ import Footer from '../components/Footer'
 import SpendChart from '../components/SpendChart'
 import SeverityBadge from '../components/SeverityBadge'
 
+const MOCK_CHART = [
+  { day: 'Mon', amount: 120 }, { day: 'Tue', amount: 85 }, { day: 'Wed', amount: 200, hasAnomaly: true },
+  { day: 'Thu', amount: 95 }, { day: 'Fri', amount: 150 }, { day: 'Sat', amount: 300, hasAnomaly: true },
+  { day: 'Sun', amount: 180 },
+]
+
 const INSIGHTS = [
   { icon: 'insights', title: 'Spending Patterns', text: 'Your heaviest spending occurs on Sundays — consistent with Quidditch match day purchases.' },
   { icon: 'psychology', title: 'Behavioral Analysis', text: 'Transactions spike after full moons, suggesting late-night Hogsmeade visits.' },
@@ -48,7 +54,7 @@ export default function Pensieve() {
         {/* Chart */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="bg-[#faf3e6] rounded-xl p-6 shadow-md mb-8">
-          <SpendChart />
+          <SpendChart data={MOCK_CHART} />
         </motion.div>
 
         {/* Insights */}
@@ -97,9 +103,9 @@ export default function Pensieve() {
           <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Mischief Risk Breakdown</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Dementor', count: 3, color: 'bg-[#dc2626]', severity: 'high' },
-              { label: 'Boggart', count: 5, color: 'bg-[#d4af37]', severity: 'medium' },
-              { label: 'Peeves', count: 12, color: 'bg-[#2d6a4f]', severity: 'low' },
+              { label: 'Dementor', count: 3, color: 'bg-[#dc2626]', severity: 'high' as const },
+              { label: 'Boggart', count: 5, color: 'bg-[#d4af37]', severity: 'medium' as const },
+              { label: 'Peeves', count: 12, color: 'bg-[#2d6a4f]', severity: 'low' as const },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3 p-4 bg-white/50 rounded-lg">
                 <div className={`w-3 h-3 rounded-full ${item.color}`} />

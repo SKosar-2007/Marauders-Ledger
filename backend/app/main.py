@@ -14,11 +14,14 @@ from app.database import (
     get_anomalies,
     get_anomaly_by_id,
     get_narrative_by_anomaly_id,
+    get_spending_by_category,
+    get_spending_by_day,
     get_transactions_by_batch,
     init_db,
     insert_anomalies,
     insert_narrative,
     insert_transactions,
+    update_anomaly_status,
     update_batch_status,
     update_narrative_audio,
 )
@@ -188,3 +191,23 @@ async def get_narrative_audio(anomaly_id: int):
 
     await asyncio.to_thread(update_narrative_audio, narrative["narrative_id"], audio)
     return Response(content=audio, media_type="audio/mpeg")
+
+
+@app.post("/api/anomalies/{anomaly_id}/status")
+async def set_anomaly_status(anomaly_id: int, status: str):
+    if status not in ("valid", "mischief", "pending"):
+        raise HTTPException(status_code=400, detail="Status must be valid, mischief, or pending")
+    ok = await asyncio.to_thread(update_anomaly_status, anomaly_id, status)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Anomaly not found")
+    return {"anomaly_id": anomaly_id, "status": status}
+
+
+@app.get("/api/spending/category")
+async def spending_by_category(user_id: str = "default"):
+    return await asyncio.to_thread(get_spending_by_category, user_id)
+
+
+@app.get("/api/spending/daily")
+async def spending_by_day(user_id: str = "default"):
+    return await asyncio.to_thread(get_spending_by_day, user_id)

@@ -51,3 +51,18 @@ export const getHealth = async () => {
   const { data } = await client.get('/health')
   return data as { status: string; version: string }
 }
+
+export const setAnomalyStatus = async (anomalyId: string, status: string) => {
+  const { data } = await client.post(`/anomalies/${anomalyId}/status?status=${status}`)
+  return data as { anomaly_id: number; status: string }
+}
+
+export const getSpendingByCategory = async (userId: string) => {
+  const { data } = await client.get(`/spending/category?user_id=${userId}`)
+  return data as Array<{ category: string; total: number }>
+}
+
+export const getSpendingByDay = async (userId: string) => {
+  const { data } = await client.get(`/spending/daily?user_id=${userId}`)
+  return data as Array<{ day: string; amount: number }>
+}

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
@@ -9,6 +10,9 @@ import SeverityBadge from '../components/SeverityBadge'
 import { useAnomalies } from '../hooks/useAnomalies'
 import { useNarrative } from '../hooks/useNarrative'
 import { useAudio } from '../hooks/useAudio'
+import { setAnomalyStatus } from '../services/api'
+import { exportAnomalyReport } from '../services/pdfExport'
+import { useToast } from '../context/ToastContext'
 
 const TETHERED_TXNS = [
   { date: 'Oct 31, 1981', entity: 'Ollivanders', amount: 450, status: 'cleared' },
@@ -19,11 +23,29 @@ const TETHERED_TXNS = [
 export default function AnomalyDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const { data: anomalies = [] } = useAnomalies('default')
   const { data: narrative, isLoading: narrativeLoading } = useNarrative(id || '')
   const { data: audioBlob, isLoading: audioLoading, isError: audioError } = useAudio(id || '')
+  const [anomalyStatus, setAnomalyStatusState] = useState<string>('pending')
 
   const anomaly = anomalies.find((a: any) => String(a.anomaly_id) === id)
+
+  const handleStatus = async (status: string) => {
+    if (!id) return
+    try {
+      await setAnomalyStatus(id, status)
+      setAnomalyStatusState(status)
+      showToast(status === 'valid' ? 'Marked as valid — mischief cleared' : 'Confirmed mischief — investigation initiated', 'success')
+    } catch {
+      showToast('Failed to update status', 'error')
+    }
+  }
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+    showToast('Link copied to clipboard', 'success')
+  }
 
   if (!anomaly) {
     return (
@@ -69,17 +91,42 @@ export default function AnomalyDetail() {
             </div>
             <div className="flex flex-wrap gap-4 mt-8 items-center">
               <SeverityBadge severity={anomaly.severity} />
-              <button className="bg-[#735c00] text-white hover:bg-[#5a4a00] transition-all px-6 py-2 rounded-full flex items-center gap-2 text-sm font-crimson relative overflow-hidden group">
-                <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                <span className="material-symbols-outlined text-[18px]">verified</span>
-                Mark Valid
-              </button>
-              <button className="bg-transparent text-[#735c00] ring-1 ring-[#735c00] hover:bg-[#735c00]/10 transition-colors px-6 py-2 rounded-full flex items-center gap-2 text-sm font-crimson">
-                <span className="material-symbols-outlined text-[18px]">block</span>
-                Confirm Mischief
-              </button>
+              {anomalyStatus === 'pending' ? (
+                <>
+                  <button onClick={() => handleStatus('valid')}
+                    className="bg-[#735c00] text-white hover:bg-[#5a4a00] transition-all px-6 py-2 rounded-full flex items-center gap-2 text-sm font-crimson relative overflow-hidden group">
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
+                    <span className="material-symbols-outlined text-[18px]">verified</span>
+                    Mark Valid
+                  </button>
+                  <button onClick={() => handleStatus('mischief')}
+                    className="bg-transparent text-[#735c00] ring-1 ring-[#735c00] hover:bg-[#735c00]/10 transition-colors px-6 py-2 rounded-full flex items-center gap-2 text-sm font-crimson">
+                    <span className="material-symbols-outlined text-[18px]">block</span>
+                    Confirm Mischief
+                  </button>
+                </>
+              ) : (
+                <span className={`px-4 py-2 rounded-full font-crimson text-sm flex items-center gap-2 ${
+                  anomalyStatus === 'valid' ? 'bg-[#2d6a4f]/10 text-[#2d6a4f]' : 'bg-[#dc2626]/10 text-[#dc2626]'
+                }`}>
+                  <span className="material-symbols-outlined text-[16px]">
+                    {anomalyStatus === 'valid' ? 'check_circle' : 'warning'}
+                  </span>
+                  {anomalyStatus === 'valid' ? 'Marked Valid' : 'Mischief Confirmed'}
+                </span>
+              )}
               <button onClick={() => navigate('/dashboard')} className="ml-auto font-crimson text-sm text-[#735c00] hover:text-[#2c1810] underline decoration-[#735c00]/50 underline-offset-4">
                 ← Return to Map
+              </button>
+              <button onClick={() => exportAnomalyReport(anomaly, narrative?.text)}
+                className="font-crimson text-sm text-[#735c00] hover:text-[#2c1810] underline decoration-[#735c00]/50 underline-offset-4 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">download</span>
+                Export PDF
+              </button>
+              <button onClick={handleCopyLink}
+                className="font-crimson text-sm text-[#735c00] hover:text-[#2c1810] underline decoration-[#735c00]/50 underline-offset-4 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">share</span>
+                Share Link
               </button>
             </div>
           </div>

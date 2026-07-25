@@ -107,3 +107,29 @@ def update_narrative_audio(narrative_id: int, audio_data: bytes):
         if n.get("narrative_id") == narrative_id:
             n["audio_data"] = audio_data
             break
+
+
+def update_anomaly_status(anomaly_id: int, status: str) -> bool:
+    for a in _anomalies:
+        if a.get("anomaly_id") == anomaly_id:
+            a["status"] = status
+            return True
+    return False
+
+
+def get_spending_by_category(user_id: str) -> list[dict]:
+    txns = [t for t in _transactions if t.get("user_id") == user_id]
+    cats: dict[str, float] = {}
+    for t in txns:
+        cat = t.get("category", "Unknown")
+        cats[cat] = cats.get(cat, 0) + t.get("amount", 0)
+    return [{"category": k, "total": v} for k, v in cats.items()]
+
+
+def get_spending_by_day(user_id: str) -> list[dict]:
+    txns = [t for t in _transactions if t.get("user_id") == user_id]
+    days: dict[str, float] = {}
+    for t in txns:
+        day = str(t.get("day", 0))
+        days[day] = days.get(day, 0) + t.get("amount", 0)
+    return [{"day": k, "amount": v} for k, v in sorted(days.items())]
