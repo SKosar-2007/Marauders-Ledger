@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 
 interface AppState {
-  userId: string | null
+  userId: string
   batchId: string | null
   setUserId: (id: string) => void
   setBatchId: (id: string) => void
@@ -10,7 +10,7 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string>('default')
   const [batchId, setBatchId] = useState<string | null>(null)
 
   return (

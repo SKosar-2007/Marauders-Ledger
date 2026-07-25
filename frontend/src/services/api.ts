@@ -1,27 +1,53 @@
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
-const client = axios.create({ baseURL: API_BASE })
+const client = axios.create({
+  baseURL: '/api',
+  timeout: 30000,
+})
 
 export const uploadCSV = async (file: File) => {
   const form = new FormData()
   form.append('file', file)
-  return client.post('/api/upload', form).then((r) => r.data)
+  const { data } = await client.post('/upload', form)
+  return data as { batch_id: string; status: string; txn_count: number }
 }
 
 export const analyzeBatch = async (batchId: string) => {
-  return client.post(`/api/analyze?batch_id=${batchId}`).then((r) => r.data)
+  const { data } = await client.post(`/analyze?batch_id=${batchId}`)
+  return data as { anomalies_found: number; total_txns: number; status: string }
 }
 
 export const getAnomalies = async (userId: string) => {
-  return client.get(`/api/anomalies?user_id=${userId}`).then((r) => r.data)
+  const { data } = await client.get(`/anomalies?user_id=${userId}`)
+  return data as Array<{
+    anomaly_id: string
+    txn_id?: string
+    amount: number
+    category: string
+    merchant: string
+    hour: number
+    day?: number
+    isolation_score: number
+    rule_score: number
+    final_score: number
+    is_anomaly: boolean
+    severity: 'low' | 'medium' | 'high' | 'none'
+    triggered_rules: string[]
+    detected_at?: string
+  }>
 }
 
 export const getNarrative = async (anomalyId: string) => {
-  return client.get(`/api/narratives/${anomalyId}`).then((r) => r.data)
+  const { data } = await client.get(`/narratives/${anomalyId}`)
+  return data as { narrative_id: string; anomaly_id: string; text: string; created_at?: string }
 }
 
 export const getAudio = async (anomalyId: string) => {
-  return client.get(`/api/narratives/${anomalyId}/audio`, { responseType: 'blob' }).then((r) => r.data)
+  const { data } = await client.get(`/narratives/${anomalyId}/audio`, { responseType: 'blob' })
+  return data as Blob
+}
+
+export const getHealth = async () => {
+  const { data } = await client.get('/health')
+  return data as { status: string; version: string }
 }
