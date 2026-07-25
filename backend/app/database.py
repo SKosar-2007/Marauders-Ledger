@@ -191,6 +191,33 @@ def get_anomaly_by_id(anomaly_id: int) -> dict | None:
             conn.close()
 
 
+def get_narrative_by_anomaly_id(anomaly_id: int) -> dict | None:
+    conn = _get_conn()
+    try:
+        row = conn.execute(
+            "SELECT * FROM narratives WHERE anomaly_id = ? ORDER BY created_at DESC LIMIT 1",
+            (anomaly_id,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        if not _USE_SQLITE:
+            conn.close()
+
+
+def insert_narrative(anomaly_id: int, text: str) -> int:
+    conn = _get_conn()
+    try:
+        cur = conn.execute(
+            "INSERT INTO narratives (anomaly_id, text) VALUES (?, ?)",
+            (anomaly_id, text),
+        )
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        if not _USE_SQLITE:
+            conn.close()
+
+
 def get_batch_status(batch_id: str) -> dict | None:
     conn = _get_conn()
     try:

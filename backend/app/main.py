@@ -10,14 +10,17 @@ from app.database import (
     create_upload_batch,
     get_anomalies,
     get_anomaly_by_id,
+    get_narrative_by_anomaly_id,
     get_transactions_by_batch,
     init_db,
     insert_anomalies,
+    insert_narrative,
     insert_transactions,
     update_batch_status,
 )
+from app.gemini import generate_narrative
 from app.inference import detect_anomalies, load_models
-from app.schemas import AnomalyResult, BatchResponse, HealthResponse
+from app.schemas import AnomalyResult, BatchResponse, HealthResponse, NarrativeResponse
 
 
 @asynccontextmanager
@@ -131,9 +134,29 @@ async def get_anomaly(anomaly_id: int):
     return _row_to_anomaly(row)
 
 
-@app.get("/api/narratives/{anomaly_id}")
-async def get_narrative(anomaly_id: str):
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+@app.get("/api/narratives/{anomaly_id}", response_model=NarrativeResponse)
+async def get_narrative(anomaly_id: int):
+    existing = await asyncio.to_thread(get_narrative_by_anomaly_id, anomaly_id)
+    if existing:
+        return NarrativeResponse(
+            narrative_id=existing["narrative_id"],
+            anomaly_id=existing["anomaly_id"],
+            text=existing["text"],
+            created_at=existing.get("created_at"),
+        )
+
+    anomaly = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
+    if not anomaly:
+        raise HTTPException(status_code=404, detail="Anomaly not found")
+
+    text = await asyncio.to_thread(generate_narrative, anomaly)
+    nid = await asyncio.to_thread(insert_narrative, anomaly_id, text)
+
+    return NarrativeResponse(
+        narrative_id=nid,
+        anomaly_id=anomaly_id,
+        text=text,
+    )
 
 
 @app.get("/api/narratives/{anomaly_id}/audio")

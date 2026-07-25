@@ -38,3 +38,10 @@ class BatchResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+class NarrativeResponse(BaseModel):
+    narrative_id: int
+    anomaly_id: int
+    text: str
+    created_at: datetime | None = None
