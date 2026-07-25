@@ -1,0 +1,68 @@
+{
+  "merchant_freq_map": {
+    "Swiggy": 481,
+    "Local Cafe": 451,
+    "KFC": 423,
+    "Zomato": 419,
+    "Amazon": 414,
+    "Flipkart": 398,
+    "Dominos": 285,
+    "Myntra": 260,
+    "Netflix": 240,
+    "GooglePay": 240,
+    "Paytm": 228,
+    "Spotify": 225,
+    "Meesho": 221,
+    "PhonePe": 212,
+    "Hotstar": 184,
+    "Uber": 156,
+    "Ajio": 124,
+    "Jio": 123,
+    "YouTube": 117,
+    "IRCTC": 115,
+    "Rapido": 115,
+    "Ola": 103,
+    "RedBus": 88,
+    "JioCinema": 81,
+    "Airtel": 73,
+    "Unknown Merchant": 44
+  },
+  "cat_mean_map": {
+    "Bills": 896.9588687782806,
+    "Entertainment": 231.9879508196721,
+    "Food": 230.9811052123552,
+    "Shopping": 584.8835714285714,
+    "Travel": 372.616323024055
+  },
+  "global_mean": 433.2815532646048,
+  "global_std": 815.6917570105666,
+  "cat_stats": [
+    {
+      "category": "Bills",
+      "cat_mean": 896.9588687782806,
+      "cat_std": 921.9111454891959
+    },
+    {
+      "category": "Entertainment",
+      "cat_mean": 231.9879508196721,
+      "cat_std": 457.675356939783
+    },
+    {
+      "category": "Food",
+      "cat_mean": 230.9811052123552,
+      "cat_std": 831.9393612041082
+    },
+    {
+      "category": "Shopping",
+      "cat_mean": 584.8835714285714,
+      "cat_std": 814.3606156865336
+    },
+    {
+      "category": "Travel",
+      "cat_mean": 372.616323024055,
+      "cat_std": 613.061385103098
+    }
+  ],
+  "rolling_mean": 292.3600000000006,
+  "rolling_std": 247.18125212081148
+}
