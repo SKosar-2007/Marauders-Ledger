@@ -103,6 +103,12 @@ def get_batches_by_user(user_id: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_batch_by_id(batch_id: str) -> Optional[dict]:
+    conn = _get_auth_conn()
+    row = conn.execute("SELECT * FROM batches WHERE batch_id = ?", (batch_id,)).fetchone()
+    return dict(row) if row else None
+
+
 # ── Data operations (VectorAI primary, SQLite fallback) ──
 
 def insert_transactions(txns: list[dict], user_id: int, batch_id: str) -> list[int]:

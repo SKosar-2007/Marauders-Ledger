@@ -21,7 +21,7 @@ export default function Landing() {
       setBatchId(result.batch_id)
       showToast(`Mischief managed! ${result.anomalies_found} anomalies detected.`, 'success')
       navigate('/dashboard')
-    } catch (err) {
+    } catch {
       showToast('The spell failed. Please check your CSV format.', 'error')
     }
   }

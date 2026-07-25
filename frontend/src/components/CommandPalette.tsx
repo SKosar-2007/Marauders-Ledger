@@ -21,6 +21,7 @@ const COMMANDS = [
   { path: '/profile', icon: 'person', label: 'Profile', shortcut: 'g u' },
 ]
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCommandPalette() {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')

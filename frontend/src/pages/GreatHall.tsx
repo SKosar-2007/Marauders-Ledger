@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
@@ -14,7 +13,6 @@ export default function GreatHall() {
   const { data: spendingData = [] } = useSpendingByDay()
 
   const totalSpent = spendingData.reduce((sum, d) => sum + d.amount, 0)
-  const highCount = anomalies.filter((a) => a.severity === 'high').length
 
   const EVENTS = anomalies.slice(0, 7).map((a: any, i: number) => ({
     time: a.detected_at ? new Date(a.detected_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : `${14 - i}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`,

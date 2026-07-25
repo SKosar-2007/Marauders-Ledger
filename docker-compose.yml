@@ -1,4 +1,18 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: marauders-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   vectorai:
     image: actian/vectorai:community
     container_name: marauders-vectorai
@@ -27,7 +41,10 @@ services:
     environment:
       - VECTORAI_HOST=vectorai
       - VECTORAI_PORT=6574
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
+      redis:
+        condition: service_healthy
       vectorai:
         condition: service_healthy
     restart: unless-stopped
@@ -37,6 +54,38 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  celery-worker:
+    build:
+      context: ./backend
+    container_name: marauders-celery
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=4
+    env_file:
+      - .env
+    environment:
+      - VECTORAI_HOST=vectorai
+      - VECTORAI_PORT=6574
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-beat:
+    build:
+      context: ./backend
+    container_name: marauders-celery-beat
+    command: celery -A app.celery_app beat --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
@@ -50,3 +99,4 @@ services:
 
 volumes:
   vectorai-data:
+  redis-data:

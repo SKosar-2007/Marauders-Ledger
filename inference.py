@@ -9,6 +9,8 @@ Designed for FastAPI /analyze endpoint integration.
 import json
 import os
 
+from typing import Optional
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -106,7 +108,7 @@ def load_models(model_dir: str = "models"):
 # =============================================================================
 # FEATURE ENGINEERING (25 features, must match training)
 # =============================================================================
-def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.DataFrame:
+def engineer_features(df: pd.DataFrame, fit_stats: Optional[dict] = None) -> pd.DataFrame:
     df = df.copy()
 
     df["amount_log"] = np.log1p(df["amount"])
@@ -310,7 +312,7 @@ def _get_triggered_rules(row, stats):
 # =============================================================================
 # MAIN INFERENCE FUNCTION
 # =============================================================================
-def detect_anomalies(transactions: list[dict], threshold: float = None) -> list[dict]:
+def detect_anomalies(transactions: list, threshold: Optional[float] = None) -> list:
     if not _LOADED:
         load_models()
 

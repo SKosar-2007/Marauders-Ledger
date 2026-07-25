@@ -47,6 +47,7 @@ from app.schemas import (
     UserRegister,
     UserResponse,
 )
+from app.tasks import process_upload
 from app.tts import generate_audio
 
 
@@ -142,6 +143,8 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
     txns = df.to_dict(orient="records")
     batch_id = await asyncio.to_thread(create_upload_batch, user_id, len(txns))
     txn_ids = await asyncio.to_thread(insert_transactions, txns, user_id, batch_id)
+
+    process_upload.delay(batch_id, user_id)
 
     return BatchResponse(batch_id=batch_id, status="processing", txn_count=len(txn_ids))
 
@@ -300,6 +303,17 @@ async def spending_by_day(current_user: dict = Depends(get_current_user)):
 async def list_batches(current_user: dict = Depends(get_current_user)):
     user_id = int(current_user["sub"])
     return await asyncio.to_thread(get_batches_by_user, user_id)
+
+
+@app.get("/api/batches/{batch_id}")
+async def get_batch_status(batch_id: str, current_user: dict = Depends(get_current_user)):
+    from app.database import get_batch_by_id
+    batch = await asyncio.to_thread(get_batch_by_id, batch_id)
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    if batch["user_id"] != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Access denied")
+    return batch
 
 
 # ── Transactions ──

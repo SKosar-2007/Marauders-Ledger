@@ -10,7 +10,7 @@ export default function DailyProphet() {
   const [format, setFormat] = useState('scroll')
   const { data: anomalies = [] } = useAnomalies()
 
-  const RECENT_EXPORTS = anomalies.slice(0, 3).map((a, i) => ({
+  const RECENT_EXPORTS = anomalies.slice(0, 3).map((a) => ({
     name: `${a.category} Report — ${a.merchant}`,
     type: 'Standard Scroll',
     date: a.detected_at ? new Date(a.detected_at).toLocaleDateString() : 'Jul 25, 2026',

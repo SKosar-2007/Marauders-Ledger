@@ -12,3 +12,5 @@ PyJWT>=2.8
 passlib[bcrypt]>=1.7
 bcrypt>=4.0
 actian-vectorai-client>=1.0
+celery[redis]>=5.4
+redis>=5.0

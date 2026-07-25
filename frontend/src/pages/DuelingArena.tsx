@@ -9,7 +9,6 @@ export default function DuelingArena() {
   const { data: spendingData = [] } = useSpendingByDay()
 
   const totalSpent = spendingData.reduce((s, d) => s + d.amount, 0)
-  const highCount = anomalies.filter((a) => a.severity === 'high').length
 
   return (
     <div className="min-h-screen ml-[72px]">
