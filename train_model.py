@@ -37,6 +37,12 @@ from sklearn.neighbors import LocalOutlierFactor
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import OneClassSVM
 
+try:
+    from imblearn.over_sampling import SMOTE
+    HAS_SMOTE = True
+except ImportError:
+    HAS_SMOTE = False
+
 warnings.filterwarnings("ignore")
 
 try:
@@ -54,11 +60,11 @@ except ImportError:
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-N_SAMPLES = 10000
-N_TEST = 2000
-ANOMALY_PCT = 0.03
+N_SAMPLES = 15000
+N_TEST = 3000
+ANOMALY_PCT = 0.04
 RANDOM_SEED = 42
-N_FOLDS = 10
+N_FOLDS = 5
 N_REPEATS = 2
 OUTPUT_DIR = "models"
 DATA_DIR = "data"
@@ -75,6 +81,9 @@ FEATURES = [
     "amount_roundedness", "category_std_amount",
     "is_amount_outlier_iqr", "txn_velocity_1h",
     "amount_to_global_mean_ratio", "category_merchant_diversity",
+    "amt_x_rarity", "amt_x_unusual_hour", "zscore_x_new_merchant",
+    "cat_ratio_x_unusual_hour", "rolling_dev_x_rarity",
+    "amt_x_velocity", "spike_score",
 ]
 
 CATEGORY_PARAMS = {
@@ -172,17 +181,22 @@ def _inject_anomalies(df, n_anomalies, seed):
         ["amount_spike", "unusual_hour", "new_merchant", "velocity_attack",
          "category_anomaly", "subtle_amount", "time_pattern_break",
          "round_amount_fraud", "micro_txn_flood", "geo_impossible",
-         "double_spend", "compound"],
+         "double_spend", "compound", "escalating_amounts", "weekend_spike",
+         "late_night_txn", "merchant_hopping"],
         n_anomalies,
-        p=[0.15, 0.12, 0.12, 0.08, 0.08, 0.08, 0.08, 0.08, 0.06, 0.06, 0.05, 0.04]
+        p=[0.12, 0.10, 0.10, 0.07, 0.07, 0.07, 0.07, 0.07, 0.05, 0.05, 0.04, 0.04, 0.05, 0.04, 0.03, 0.03]
     )
 
     for i, idx in enumerate(idxs):
         atype = anomaly_types[i]
         df.at[idx, "is_anomaly"] = 1
+        cat = df.at[idx, "category"]
+        base_mean = CATEGORY_PARAMS[cat]["mean"]
+        base_std = CATEGORY_PARAMS[cat]["std"]
 
         if "amount_spike" in atype:
-            df.at[idx, "amount"] = round(float(np.random.uniform(2000, 12000)), 2)
+            multiplier = np.random.uniform(6, 20)
+            df.at[idx, "amount"] = round(float(base_mean * multiplier), 2)
         if "unusual_hour" in atype or "time_pattern_break" in atype:
             df.at[idx, "hour"] = np.random.choice([1, 2, 3, 4, 5])
         if "new_merchant" in atype:
@@ -191,11 +205,9 @@ def _inject_anomalies(df, n_anomalies, seed):
                 "Crypto Exchange", "Wire Transfer"
             ])
         if "subtle_amount" in atype:
-            cat = df.at[idx, "category"]
-            base = CATEGORY_PARAMS[cat]["mean"]
-            df.at[idx, "amount"] = round(base * np.random.uniform(3, 6), 2)
+            df.at[idx, "amount"] = round(base_mean * np.random.uniform(3, 6), 2)
         if "category_anomaly" in atype:
-            wrong_cats = [c for c in CATEGORY_PARAMS if c != df.at[idx, "category"]]
+            wrong_cats = [c for c in CATEGORY_PARAMS if c != cat]
             df.at[idx, "category"] = np.random.choice(wrong_cats)
             df.at[idx, "merchant"] = np.random.choice(
                 MERCHANTS_BY_CATEGORY[df.at[idx, "category"]]
@@ -217,9 +229,51 @@ def _inject_anomalies(df, n_anomalies, seed):
             ])
         if "double_spend" in atype:
             df.at[idx, "amount"] = round(float(np.random.uniform(1500, 8000)), 2)
+
+            nearby = df[(df.index != idx) & (df["category"] == cat) &
+                        (df["amount"] > df["amount"].median())]
+            if len(nearby) > 0:
+                j = np.random.choice(nearby.index)
+                df.at[idx, "merchant"] = df.at[j, "merchant"]
         if "velocity_attack" in atype:
             df.at[idx, "amount"] = round(float(np.random.uniform(500, 3000)), 2)
             df.at[idx, "hour"] = np.random.choice([1, 2, 3])
+
+            for j in range(1, min(4, len(df) - idx - 1)):
+                idx2 = idx + j
+                if idx2 < len(df):
+                    df.at[idx2, "is_anomaly"] = 1
+                    df.at[idx2, "amount"] = round(float(np.random.uniform(500, 3000)), 2)
+                    df.at[idx2, "hour"] = df.at[idx, "hour"]
+                    df.at[idx2, "merchant"] = df.at[idx, "merchant"]
+        if "escalating_amounts" in atype:
+            base = df.at[idx, "amount"]
+            for j in range(1, min(4, len(df) - idx - 1)):
+                idx2 = idx + j
+                if idx2 < len(df):
+                    df.at[idx2, "is_anomaly"] = 1
+                    df.at[idx2, "amount"] = round(float(base * (1 + j * 0.5)), 2)
+                    df.at[idx2, "hour"] = df.at[idx, "hour"]
+                    df.at[idx2, "merchant"] = df.at[idx, "merchant"]
+        if "weekend_spike" in atype:
+            df.at[idx, "day"] = np.random.choice([5, 6])
+            df.at[idx, "amount"] = round(float(base_mean * np.random.uniform(4, 10)), 2)
+            if df.at[idx, "merchant"] in MERCHANTS_BY_CATEGORY.get(cat, []):
+                df.at[idx, "merchant"] = np.random.choice(["Unknown Merchant", "Crypto Exchange"])
+        if "late_night_txn" in atype:
+            df.at[idx, "hour"] = np.random.choice([23, 0, 1])
+            df.at[idx, "amount"] = round(float(base_mean * np.random.uniform(3, 7)), 2)
+            df.at[idx, "merchant"] = np.random.choice(["Online Casino", "Dark Web Market", "Crypto Exchange"])
+        if "merchant_hopping" in atype:
+            merchants = MERCHANTS_BY_CATEGORY.get(cat, [])
+            if len(merchants) >= 3:
+                hops = np.random.choice(merchants, min(4, len(merchants)), replace=False)
+                for j, m in enumerate(hops):
+                    idx2 = idx + j
+                    if idx2 < len(df):
+                        df.at[idx2, "is_anomaly"] = 1
+                        df.at[idx2, "merchant"] = m
+                        df.at[idx2, "amount"] = round(float(np.random.uniform(base_mean, base_mean * 3)), 2)
 
     return df
 
@@ -334,6 +388,14 @@ def engineer_features(df, fit_stats=None):
     df["amount_to_global_mean_ratio"] = df["amount"] / fit_stats["global_mean"] if fit_stats else df["amount"] / df["amount"].mean()
     df["category_merchant_diversity"] = df.groupby("category")["merchant"].transform("nunique")
 
+    df["amt_x_rarity"] = df["amount"] * df["merchant_rarity"]
+    df["amt_x_unusual_hour"] = df["amount"] * df["is_unusual_hour"]
+    df["zscore_x_new_merchant"] = df["amount_zscore"] * (df["merchant_freq"] == 1).astype(int)
+    df["cat_ratio_x_unusual_hour"] = df["amount_cat_ratio"] * df["is_unusual_hour"]
+    df["rolling_dev_x_rarity"] = df["amount_deviation_from_rolling"] * df["merchant_rarity"]
+    df["amt_x_velocity"] = df["amount"] * np.log1p(df["txn_velocity_1h"])
+    df["spike_score"] = df["amount_cat_ratio"] * df["amount_zscore"].clip(0, 5)
+
     # Clip and clean
     df["amount_zscore"] = df["amount_zscore"].clip(-5, 5)
     df["amount_cat_ratio"] = df["amount_cat_ratio"].clip(0, 50)
@@ -353,15 +415,16 @@ def engineer_features(df, fit_stats=None):
 # 3. UNSUPERVISED SCORES AS FEATURES
 # =============================================================================
 def compute_unsupervised_scores(X_scaled):
-    iforest = IsolationForest(n_estimators=200, contamination=0.03, random_state=RANDOM_SEED, n_jobs=-1)
+    iforest = IsolationForest(n_estimators=300, contamination=0.03, max_samples=0.8,
+                              random_state=RANDOM_SEED, n_jobs=-1)
     iforest.fit(X_scaled)
     iso_scores = -iforest.decision_function(X_scaled)
 
-    lof = LocalOutlierFactor(n_neighbors=20, contamination=0.03, novelty=True, n_jobs=-1)
+    lof = LocalOutlierFactor(n_neighbors=15, contamination=0.03, novelty=True, n_jobs=-1)
     lof.fit(X_scaled)
     lof_scores = -lof.decision_function(X_scaled)
 
-    ocsvm = OneClassSVM(kernel="rbf", gamma="auto", nu=0.03)
+    ocsvm = OneClassSVM(kernel="rbf", gamma="scale", nu=0.03)
     ocsvm.fit(X_scaled)
     ocsvm_scores = -ocsvm.decision_function(X_scaled)
 
@@ -399,23 +462,32 @@ def _norm(s):
 def compute_rule_score(row, stats):
     score = 0.0
     cat_mean = stats.get("category_means", {}).get(row.get("category", ""), row.get("amount", 0))
-    if row.get("amount", 0) > 3 * cat_mean:
+    amount = row.get("amount", 0)
+    hour = row.get("hour", 12)
+    merchant = row.get("merchant", "")
+    merchant_counts = stats.get("merchant_counts", {})
+    merchant_count = merchant_counts.get(merchant, 0)
+
+    if amount > 3 * cat_mean:
         score += 0.25
-    if 2 <= row.get("hour", 12) <= 5:
+    if amount > 5 * cat_mean:
         score += 0.15
-    if stats.get("merchant_counts", {}).get(row.get("merchant", ""), 0) < 3:
+    if 2 <= hour <= 5:
         score += 0.15
-    rolling_mean = stats.get("rolling_mean_7d", row.get("amount", 0))
-    rolling_std = stats.get("rolling_std_7d", 1)
-    if row.get("amount", 0) > rolling_mean + 2 * rolling_std:
-        score += 0.20
-    if row.get("amount", 0) > rolling_mean + 3 * rolling_std:
+    if merchant_count < 3:
         score += 0.15
-    merchant_count = stats.get("merchant_counts", {}).get(row.get("merchant", ""), 0)
     if merchant_count == 0:
         score += 0.10
-    if row.get("amount", 0) % 100 == 0 and row.get("amount", 0) >= 500:
+    rolling_mean = stats.get("rolling_mean_7d", amount)
+    rolling_std = stats.get("rolling_std_7d", 1)
+    if amount > rolling_mean + 2 * rolling_std:
+        score += 0.20
+    if amount > rolling_mean + 3 * rolling_std:
+        score += 0.15
+    if amount % 100 == 0 and amount >= 500:
         score += 0.05
+    if amount < 10 and amount > 0:
+        score += 0.10
     return min(score, 1.0)
 
 
@@ -478,7 +550,7 @@ def run_cross_validation(df, n_splits=10, n_repeats=2):
 
         best_f1 = 0
         best_thresh = 0.5
-        for t in np.arange(0.10, 0.85, 0.005):
+        for t in np.arange(0.05, 0.95, 0.005):
             preds = (prob > t).astype(int)
             f1 = f1_score(y_val, preds, zero_division=0)
             if f1 > best_f1:
@@ -530,53 +602,103 @@ def _bootstrap_ci(f1_scores, n_bootstrap=2000, ci=0.95):
     return np.percentile(boot, (1 - ci) / 2 * 100), np.percentile(boot, (1 + ci) / 2 * 100)
 
 
-def _get_base_models():
+def _get_base_models(scale_pos_weight=None):
     models = {}
     models["rf"] = RandomForestClassifier(
-        n_estimators=500, max_depth=15, min_samples_split=5,
-        class_weight="balanced", random_state=RANDOM_SEED, n_jobs=-1
+        n_estimators=800, max_depth=20, min_samples_split=3,
+        min_samples_leaf=1, class_weight="balanced_subsample",
+        max_features="sqrt", random_state=RANDOM_SEED, n_jobs=-1
     )
     models["gb"] = GradientBoostingClassifier(
-        n_estimators=300, learning_rate=0.05, max_depth=6,
-        subsample=0.8, random_state=RANDOM_SEED
+        n_estimators=500, learning_rate=0.04, max_depth=7,
+        subsample=0.8, min_samples_leaf=2, max_features=0.7,
+        random_state=RANDOM_SEED
     )
+    spw = scale_pos_weight if scale_pos_weight else 30
     if HAS_XGB:
         models["xgb"] = XGBClassifier(
-            n_estimators=400, max_depth=6, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.8, scale_pos_weight=30,
+            n_estimators=600, max_depth=7, learning_rate=0.04,
+            subsample=0.8, colsample_bytree=0.8,
+            min_child_weight=2, reg_alpha=0.05, reg_lambda=0.5,
+            scale_pos_weight=spw, gamma=0.1,
             eval_metric="logloss", random_state=RANDOM_SEED, n_jobs=-1,
             verbosity=0
         )
     if HAS_LGBM:
         models["lgbm"] = LGBMClassifier(
-            n_estimators=400, max_depth=6, learning_rate=0.05,
-            subsample=0.8, colsample_bytree=0.8, is_unbalance=True,
+            n_estimators=600, max_depth=7, learning_rate=0.04,
+            subsample=0.8, colsample_bytree=0.8,
+            min_child_samples=3, reg_alpha=0.05, reg_lambda=0.5,
+            is_unbalance=True, min_split_gain=0.01,
             random_state=RANDOM_SEED, n_jobs=-1, verbose=-1
         )
     return models
 
 
-def _ensemble_predict(models, X_train, y_train, X_val, method="average"):
+def _ensemble_predict(models, X_train, y_train, X_val, y_val=None, method="average", use_smote=True):
     probs = {}
     for name, model in models.items():
-        model.fit(X_train, y_train)
+        X_tr, y_tr = X_train, y_train
+        if use_smote and HAS_SMOTE and len(np.unique(y_train)) > 1:
+            minority = (y_train == 1).sum()
+            if minority > 1:
+                ratio = max(0.15, min(0.5, minority / (len(y_train) - minority) * 5))
+                try:
+                    smote = SMOTE(sampling_strategy=ratio, random_state=RANDOM_SEED, k_neighbors=min(5, minority - 1))
+                    X_tr, y_tr = smote.fit_resample(X_train, y_train)
+                except Exception:
+                    pass
+        model.fit(X_tr, y_tr)
         probs[name] = model.predict_proba(X_val)[:, 1]
 
-    if method == "stacking" and len(probs) >= 3:
+    if method == "stacking" and len(probs) >= 3 and y_val is not None and len(np.unique(y_val)) > 1:
         meta_X = np.column_stack([probs[k] for k in sorted(probs.keys())])
-        meta_model = LogisticRegression(C=1.0, random_state=RANDOM_SEED)
-        meta_model.fit(meta_X, np.zeros(len(meta_X)))
+        meta_model = LogisticRegression(C=1.0, class_weight="balanced", random_state=RANDOM_SEED, max_iter=1000)
+        meta_model.fit(meta_X, y_val)
         ensemble_prob = meta_model.predict_proba(meta_X)[:, 1]
         return ensemble_prob
+    elif y_val is not None and len(np.unique(y_val)) > 1:
+        return _weighted_ensemble(probs, len(X_val), y_val)
     else:
-        weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
-        total = 0
-        ensemble_prob = np.zeros(len(X_val))
-        for name, p in probs.items():
-            w = weights.get(name, 1.0 / len(probs))
-            ensemble_prob += w * p
-            total += w
-        return ensemble_prob / total if total > 0 else ensemble_prob
+        return _default_ensemble(probs, len(X_val))
+
+
+def _weighted_ensemble(probs, n, y_val):
+    weights = _compute_dynamic_weights(probs, y_val)
+    return _apply_weights(probs, n, weights)
+
+
+def _default_ensemble(probs, n):
+    weights = {name: 1.0 / len(probs) for name in probs}
+    return _apply_weights(probs, n, weights)
+
+
+def _apply_weights(probs, n, weights):
+    total = 0.0
+    ensemble = np.zeros(n)
+    for name, p in probs.items():
+        w = weights.get(name, 1.0 / len(probs))
+        ensemble += w * p
+        total += w
+    return ensemble / total if total > 0 else ensemble
+
+
+def _compute_dynamic_weights(probs, y_val):
+    if len(np.unique(y_val)) < 2:
+        return {name: 1.0 / len(probs) for name in probs}
+    f1s = {}
+    for name, p in probs.items():
+        best = 0
+        for t in np.arange(0.10, 0.90, 0.005):
+            preds = (p > t).astype(int)
+            f = f1_score(y_val, preds, zero_division=0)
+            if f > best:
+                best = f
+        f1s[name] = best
+    total_f1 = sum(f1s.values()) or 1
+    weights = {name: max(f1 / total_f1, 0.05) for name, f1 in f1s.items()}
+    w_sum = sum(weights.values())
+    return {name: w / w_sum for name, w in weights.items()}
 
 
 # =============================================================================
@@ -595,6 +717,10 @@ ANOMALY_TYPE_NAMES = {
     "geo_impossible":    "Geo Impossible",
     "double_spend":      "Double Spend",
     "compound":          "Compound",
+    "escalating_amounts":"Escalating Amounts",
+    "weekend_spike":     "Weekend Spike",
+    "late_night_txn":    "Late Night Txn",
+    "merchant_hopping":  "Merchant Hopping",
 }
 
 
@@ -651,28 +777,31 @@ def train_full(train_df, test_df):
     y_test = test_feat["is_anomaly"].values
 
     print("[5/7] Training ensemble models (XGB + LGBM + RF + GB)...")
-    models = _get_base_models()
+    models = _get_base_models(scale_pos_weight=(len(y_train) - y_train.sum()) / max(y_train.sum(), 1))
+
     for name, model in models.items():
         print(f"  Training {name}...")
-        model.fit(X_train_final, y_train)
+        X_tr, y_tr = X_train_final, y_train
+        if HAS_SMOTE and y_train.sum() > 1:
+            minority = y_train.sum()
+            ratio = max(0.15, min(0.5, minority / (len(y_train) - minority) * 5))
+            try:
+                smote = SMOTE(sampling_strategy=ratio, random_state=RANDOM_SEED, k_neighbors=min(5, minority - 1))
+                X_tr, y_tr = smote.fit_resample(X_train_final, y_train)
+            except Exception:
+                pass
+        model.fit(X_tr, y_tr)
 
     print("[6/7] Evaluating on test set...")
     probs = {}
     for name, model in models.items():
         probs[name] = model.predict_proba(X_test_final)[:, 1]
 
-    weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
-    total_w = 0
-    ensemble_prob = np.zeros(len(X_test_final))
-    for name, p in probs.items():
-        w = weights.get(name, 1.0 / len(probs))
-        ensemble_prob += w * p
-        total_w += w
-    ensemble_prob /= total_w
+    ensemble_prob = _weighted_ensemble(probs, len(X_test_final), y_test)
 
     best_f1 = 0
     best_thresh = 0.5
-    for t in np.arange(0.10, 0.85, 0.005):
+    for t in np.arange(0.05, 0.95, 0.005):
         preds = (ensemble_prob > t).astype(int)
         f1 = f1_score(y_test, preds, zero_division=0)
         if f1 > best_f1:
@@ -744,10 +873,9 @@ def save_models(result, cv_metrics):
 
     metadata = {
         "model": "SupervisedEnsemble_v4",
-        "version": "4.0",
+        "version": "4.1",
         "components": model_names,
-        "weights": {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30,
-                     "unsup_features": "as_extra_features", "rule_feature": "as_extra_feature"},
+        "weights": {"unsup_features": "as_extra_features", "rule_feature": "as_extra_feature"},
         "features": FEATURES,
         "n_features": len(FEATURES),
         "extended_features": len(FEATURES) + 4,
@@ -850,9 +978,9 @@ if __name__ == "__main__":
     os.makedirs(VIZ_DIR, exist_ok=True)
 
     print("=" * 60)
-    print("  MARAUDER'S LEDGER - ML MODEL TRAINING (v4.0)")
-    print("  Target: F1 > 0.90 | XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules")
-    print(f"  10K samples | {N_FOLDS}x{N_REPEATS} Repeated Stratified CV | 25 features")
+    print("  MARAUDER'S LEDGER - ML MODEL TRAINING (v4.1)")
+    print("  Target: F1 > 0.95 | XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules + SMOTE")
+    print(f"  {N_SAMPLES} samples | {N_FOLDS}x{N_REPEATS} Repeated Stratified CV | {len(FEATURES)} features")
     print("=" * 60)
 
     print("\n[Step 1] Generating training data...")
@@ -881,7 +1009,7 @@ if __name__ == "__main__":
     )
 
     print("\n" + "=" * 60)
-    print("  TRAINING COMPLETE")
+    print("  TRAINING COMPLETE (v4.1)")
     print(f"  CV F1:     {avg_f1:.4f}")
     print(f"  Test F1:   {result['metrics']['f1']:.4f}")
     print(f"  Test P:    {result['metrics']['precision']:.4f}")

@@ -185,6 +185,14 @@ def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.Dat
     df["amount_to_global_mean_ratio"] = df["amount"] / fit_stats["global_mean"] if fit_stats else df["amount"] / df["amount"].mean()
     df["category_merchant_diversity"] = df.groupby("category")["merchant"].transform("nunique")
 
+    df["amt_x_rarity"] = df["amount"] * df["merchant_rarity"]
+    df["amt_x_unusual_hour"] = df["amount"] * df["is_unusual_hour"]
+    df["zscore_x_new_merchant"] = df["amount_zscore"] * (df["merchant_freq"] == 1).astype(int)
+    df["cat_ratio_x_unusual_hour"] = df["amount_cat_ratio"] * df["is_unusual_hour"]
+    df["rolling_dev_x_rarity"] = df["amount_deviation_from_rolling"] * df["merchant_rarity"]
+    df["amt_x_velocity"] = df["amount"] * np.log1p(df["txn_velocity_1h"])
+    df["spike_score"] = df["amount_cat_ratio"] * df["amount_zscore"].clip(0, 5)
+
     # Clip and clean
     df["amount_zscore"] = df["amount_zscore"].clip(-5, 5)
     df["amount_cat_ratio"] = df["amount_cat_ratio"].clip(0, 50)

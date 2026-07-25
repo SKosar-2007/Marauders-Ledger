@@ -1,30 +1,28 @@
 {
-  "threshold": 0.5,
-  "models": [
-    "rf",
-    "gb",
-    "xgb",
-    "lgbm"
+  "model": "SupervisedEnsemble_v4",
+  "version": "4.1",
+  "components": [
+    "RandomForest",
+    "GradientBoosting",
+    "IsolationForest",
+    "LOF",
+    "OCSVM",
+    "RuleBased",
+    "XGBoost",
+    "LightGBM"
   ],
-  "unsupervised": [
-    "anomaly_model",
-    "lof_model",
-    "ocsvm_model"
-  ],
+  "weights": {
+    "unsup_features": "as_extra_features",
+    "rule_feature": "as_extra_feature"
+  },
   "features": [
     "amount",
-    "hour",
-    "day",
     "amount_log",
+    "hour",
     "is_unusual_hour",
     "is_weekend",
-    "is_night",
     "merchant_freq",
-    "merchant_rarity",
-    "cat_mean",
-    "cat_std",
     "category_mean_amount",
-    "category_std_amount",
     "hour_sin",
     "hour_cos",
     "amount_zscore",
@@ -32,19 +30,191 @@
     "txn_frequency_24h",
     "days_since_last_txn",
     "is_amount_extreme",
-    "rolling_7d_mean",
-    "rolling_7d_std",
     "amount_deviation_from_rolling",
     "merchant_risk_score",
     "amount_percentile",
+    "merchant_rarity",
+    "is_night",
     "amount_roundedness",
+    "category_std_amount",
     "is_amount_outlier_iqr",
     "txn_velocity_1h",
     "amount_to_global_mean_ratio",
-    "category_merchant_diversity"
+    "category_merchant_diversity",
+    "amt_x_rarity",
+    "amt_x_unusual_hour",
+    "zscore_x_new_merchant",
+    "cat_ratio_x_unusual_hour",
+    "rolling_dev_x_rarity",
+    "amt_x_velocity",
+    "spike_score"
   ],
-  "cv_f1_mean": 0.95,
-  "cv_f1_std": 0.02,
-  "train_f1": 1.0,
-  "test_f1": 0.95
+  "n_features": 32,
+  "extended_features": 36,
+  "threshold": 0.8849999999999997,
+  "contamination": 0.04,
+  "trained_samples": 15000,
+  "cv_f1_mean": 0.8863,
+  "cv_f1_std": 0.0188,
+  "test_metrics": {
+    "precision": 0.993006993006993,
+    "recall": 0.9102564102564102,
+    "f1": 0.9498327759197325,
+    "tp": 142,
+    "fp": 1,
+    "fn": 14,
+    "tn": 2723
+  },
+  "cv_folds": [
+    {
+      "fold": 1,
+      "threshold": 0.9099999999999996,
+      "precision": 0.971830985915493,
+      "recall": 0.7666666666666667,
+      "f1": 0.8571428571428571,
+      "tp": 138,
+      "fp": 4,
+      "fn": 42,
+      "tn": 2696
+    },
+    {
+      "fold": 2,
+      "threshold": 0.8099999999999996,
+      "precision": 0.9329268292682927,
+      "recall": 0.85,
+      "f1": 0.8895348837209303,
+      "tp": 153,
+      "fp": 11,
+      "fn": 27,
+      "tn": 2689
+    },
+    {
+      "fold": 3,
+      "threshold": 0.5249999999999998,
+      "precision": 1.0,
+      "recall": 0.8066298342541437,
+      "f1": 0.8929663608562691,
+      "tp": 146,
+      "fp": 0,
+      "fn": 35,
+      "tn": 2699
+    },
+    {
+      "fold": 4,
+      "threshold": 0.8749999999999997,
+      "precision": 0.9802631578947368,
+      "recall": 0.8232044198895028,
+      "f1": 0.8948948948948949,
+      "tp": 149,
+      "fp": 3,
+      "fn": 32,
+      "tn": 2696
+    },
+    {
+      "fold": 5,
+      "threshold": 0.8499999999999996,
+      "precision": 0.9673202614379085,
+      "recall": 0.8176795580110497,
+      "f1": 0.8862275449101796,
+      "tp": 148,
+      "fp": 5,
+      "fn": 33,
+      "tn": 2694
+    },
+    {
+      "fold": 6,
+      "threshold": 0.8999999999999996,
+      "precision": 0.9931506849315068,
+      "recall": 0.8055555555555556,
+      "f1": 0.8895705521472392,
+      "tp": 145,
+      "fp": 1,
+      "fn": 35,
+      "tn": 2699
+    },
+    {
+      "fold": 7,
+      "threshold": 0.6449999999999998,
+      "precision": 0.9930555555555556,
+      "recall": 0.7944444444444444,
+      "f1": 0.8827160493827161,
+      "tp": 143,
+      "fp": 1,
+      "fn": 37,
+      "tn": 2699
+    },
+    {
+      "fold": 8,
+      "threshold": 0.8849999999999997,
+      "precision": 0.9722222222222222,
+      "recall": 0.7734806629834254,
+      "f1": 0.8615384615384616,
+      "tp": 140,
+      "fp": 4,
+      "fn": 41,
+      "tn": 2695
+    },
+    {
+      "fold": 9,
+      "threshold": 0.8399999999999996,
+      "precision": 0.9937106918238994,
+      "recall": 0.8729281767955801,
+      "f1": 0.9294117647058824,
+      "tp": 158,
+      "fp": 1,
+      "fn": 23,
+      "tn": 2698
+    },
+    {
+      "fold": 10,
+      "threshold": 0.8549999999999996,
+      "precision": 0.9731543624161074,
+      "recall": 0.8011049723756906,
+      "f1": 0.8787878787878788,
+      "tp": 145,
+      "fp": 4,
+      "fn": 36,
+      "tn": 2695
+    }
+  ],
+  "fit_stats_keys": [
+    "merchant_freq_map",
+    "merchant_rarity_map",
+    "cat_stats",
+    "cat_mean_map",
+    "cat_std_map",
+    "global_mean",
+    "global_std",
+    "iqr_lower",
+    "iqr_upper",
+    "rolling_mean",
+    "rolling_std"
+  ],
+  "category_params": {
+    "Food": {
+      "mean": 150,
+      "std": 80,
+      "weight": 0.35
+    },
+    "Shopping": {
+      "mean": 500,
+      "std": 300,
+      "weight": 0.25
+    },
+    "Bills": {
+      "mean": 800,
+      "std": 400,
+      "weight": 0.15
+    },
+    "Travel": {
+      "mean": 300,
+      "std": 200,
+      "weight": 0.1
+    },
+    "Entertainment": {
+      "mean": 200,
+      "std": 100,
+      "weight": 0.15
+    }
+  }
 }
