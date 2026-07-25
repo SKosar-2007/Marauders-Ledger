@@ -71,3 +71,36 @@ class NarrativeResponse(BaseModel):
     anomaly_id: str
     text: str
     created_at: Optional[str] = None
+
+
+class PaginatedAnomalies(BaseModel):
+    items: list[AnomalyResult]
+    total: int
+    offset: int
+    limit: int
+
+
+class TransactionResult(BaseModel):
+    txn_id: Optional[str] = None
+    amount: float
+    category: str
+    merchant: str
+    hour: int
+    day: Optional[int] = None
+    timestamp: Optional[str] = None
+    batch_id: Optional[str] = None
+
+
+class PaginatedTransactions(BaseModel):
+    items: list[TransactionResult]
+    total: int
+    offset: int
+    limit: int
+
+
+class BatchProgressResponse(BaseModel):
+    batch_id: str
+    status: str
+    txn_count: int
+    anomalies_found: int
+    progress: float

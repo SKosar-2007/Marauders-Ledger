@@ -52,25 +52,34 @@ export const analyzeBatch = async (batchId: string) => {
   return data as { anomalies_found: number; total_txns: number; status: string }
 }
 
-export const getAnomalies = async (severity?: string) => {
-  const params = severity ? `?severity=${severity}` : ''
-  const { data } = await client.get(`/anomalies${params}`)
-  return data as Array<{
-    anomaly_id: string
-    txn_id?: string
-    amount: number
-    category: string
-    merchant: string
-    hour: number
-    day?: number
-    isolation_score: number
-    rule_score: number
-    final_score: number
-    is_anomaly: boolean
-    severity: 'low' | 'medium' | 'high' | 'none'
-    triggered_rules: string[]
-    detected_at?: string
-  }>
+export const getAnomalies = async (severity?: string, offset = 0, limit = 50) => {
+  const params = new URLSearchParams()
+  if (severity) params.set('severity', severity)
+  params.set('offset', String(offset))
+  params.set('limit', String(limit))
+  const qs = params.toString()
+  const { data } = await client.get(`/anomalies${qs ? `?${qs}` : ''}`)
+  return data as {
+    items: Array<{
+      anomaly_id: string
+      txn_id?: string
+      amount: number
+      category: string
+      merchant: string
+      hour: number
+      day?: number
+      isolation_score: number
+      rule_score: number
+      final_score: number
+      is_anomaly: boolean
+      severity: 'low' | 'medium' | 'high' | 'none'
+      triggered_rules: string[]
+      detected_at?: string
+    }>
+    total: number
+    offset: number
+    limit: number
+  }
 }
 
 export const getAnomaly = async (anomalyId: string) => {
@@ -126,6 +135,16 @@ export const getSpendingByDay = async () => {
 export const getBatches = async () => {
   const { data } = await client.get('/batches')
   return data as Array<{ batch_id: string; txn_count: number; status: string; created_at: string }>
+}
+
+export const getBatchStatus = async (batchId: string) => {
+  const { data } = await client.get(`/batches/${batchId}`)
+  return data as { batch_id: string; txn_count: number; status: string; created_at: string }
+}
+
+export const getBatchProgress = async (batchId: string) => {
+  const { data } = await client.get(`/batches/${batchId}/progress`)
+  return data as { batch_id: string; status: string; txn_count: number; anomalies_found: number; progress: number }
 }
 
 export const getTransactions = async () => {

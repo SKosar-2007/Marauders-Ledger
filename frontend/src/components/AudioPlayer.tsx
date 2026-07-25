@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 
 interface AudioPlayerProps {
@@ -10,6 +10,7 @@ interface AudioPlayerProps {
 export default function AudioPlayer({ audioUrl, isLoading, error }: AudioPlayerProps) {
   const [playing, setPlaying] = useState(false)
   const [bars, setBars] = useState(Array.from({ length: 24 }, () => 4 + Math.random() * 12))
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     if (!playing) return
@@ -19,14 +20,39 @@ export default function AudioPlayer({ audioUrl, isLoading, error }: AudioPlayerP
     return () => clearInterval(interval)
   }, [playing])
 
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.src = ''
+        audioRef.current = null
+      }
+    }
+  }, [])
+
   const togglePlay = () => {
     if (!audioUrl) return
-    setPlaying(!playing)
-    if (!playing) {
-      const audio = new Audio(audioUrl)
-      audio.play()
-      audio.onended = () => setPlaying(false)
+
+    if (playing && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.src = ''
+      audioRef.current = null
+      setPlaying(false)
+      return
     }
+
+    const audio = new Audio(audioUrl)
+    audioRef.current = audio
+    audio.play()
+    audio.onended = () => {
+      setPlaying(false)
+      audioRef.current = null
+    }
+    audio.onerror = () => {
+      setPlaying(false)
+      audioRef.current = null
+    }
+    setPlaying(true)
   }
 
   if (isLoading) {

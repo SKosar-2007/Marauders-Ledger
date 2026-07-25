@@ -14,21 +14,25 @@ services:
       retries: 5
 
   vectorai:
-    image: actian/vectorai:community
+    image: actian/vectorai:latest
     container_name: marauders-vectorai
     ports:
+      - "6573:6573"
       - "6574:6574"
+      - "6575:6575"
     environment:
-      - VECTORAI_LICENSE_KEY=H894W-WBGRK-J74P-HCP8D-JJ9BC-G9V7
+      - ACTIAN_VECTORAI_ACCEPT_EULA=YES
+    env_file:
+      - .env
     volumes:
-      - vectorai-data:/data
+      - vectorai-data:/var/lib/actian-vectorai
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "vectorai", "health"]
+      test: ["CMD", "python3", "-c", "import httpx; httpx.get('http://localhost:6575/').raise_for_status()"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 20s
 
   backend:
     build:
@@ -72,20 +76,12 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
-
-  celery-beat:
-    build:
-      context: ./backend
-    container_name: marauders-celery-beat
-    command: celery -A app.celery_app beat --loglevel=info
-    env_file:
-      - .env
-    environment:
-      - REDIS_URL=redis://redis:6379/0
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.celery_app inspect ping --timeout 5 | grep -q pong"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   frontend:
     build:

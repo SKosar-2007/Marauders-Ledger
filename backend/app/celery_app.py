@@ -7,16 +7,17 @@ from __future__ import annotations
 import os
 
 from celery import Celery
+from celery.signals import worker_init
 
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
-celery = Celery(
+app = Celery(
     "marauders",
     broker=REDIS_URL,
     backend=REDIS_URL,
 )
 
-celery.conf.update(
+app.conf.update(
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
@@ -28,4 +29,10 @@ celery.conf.update(
     result_expires=3600,
 )
 
-celery.autodiscover_tasks(["app"])
+app.autodiscover_tasks(["app"])
+
+
+@worker_init.connect
+def _init_worker(**_kwargs):
+    from app.database import init_db
+    init_db()

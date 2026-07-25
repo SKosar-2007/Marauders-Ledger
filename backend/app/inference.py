@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Marauder's Ledger - Inference Code (v4.0)
+Marauder's Ledger - Inference Code (v5.0)
 ==========================================
-Load pre-trained ensemble (XGB + LGBM + RF + GB) and run anomaly detection.
+Load pre-trained ensemble (XGB + LGBM + RF + GB + CatBoost + ET) and run anomaly detection.
 Designed for FastAPI /analyze endpoint integration.
 """
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+from typing import Optional
 
 import joblib
 import numpy as np
@@ -17,6 +18,7 @@ import pandas as pd
 
 _xgb_available = importlib.util.find_spec("xgboost") is not None
 _lgbm_available = importlib.util.find_spec("lightgbm") is not None
+_catboost_available = importlib.util.find_spec("catboost") is not None
 
 # =============================================================================
 # LOAD MODELS (call once at server startup)
@@ -43,7 +45,7 @@ def load_models(model_dir: str = "models"):
     global SCALER, FEATURES, METADATA
     global UNSUP_MODELS, FIT_STATS, TRAIN_STATS, _LOADED
 
-    for name in ["rf", "gb", "xgb", "lgbm"]:
+    for name in ["rf", "gb", "xgb", "lgbm", "catboost", "et"]:
         path = f"{model_dir}/{name}_model.pkl"
         if os.path.exists(path):
             model = _try_load(path)
@@ -65,8 +67,12 @@ def load_models(model_dir: str = "models"):
     unsup = [m for m in (iso, lof, ocsvm) if m is not None]
     UNSUP_MODELS = tuple(unsup) if unsup else None
 
-    with open(f"{model_dir}/model_metadata.json") as f:
-        METADATA = json.load(f)
+    meta_path = f"{model_dir}/model_metadata.json"
+    if os.path.exists(meta_path):
+        with open(meta_path) as f:
+            METADATA = json.load(f)
+    else:
+        METADATA = {"threshold": 0.50}
 
     fit_stats_path = f"{model_dir}/fit_stats.json"
     if os.path.exists(fit_stats_path):
@@ -102,9 +108,9 @@ def load_models(model_dir: str = "models"):
 
 
 # =============================================================================
-# FEATURE ENGINEERING (25 features, must match training)
+# FEATURE ENGINEERING (48 features — must match train_model.py v5 exactly)
 # =============================================================================
-def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.DataFrame:
+def engineer_features(df: pd.DataFrame, fit_stats: Optional[dict] = None) -> pd.DataFrame:
     df = df.copy()
 
     df["amount_log"] = np.log1p(df["amount"])
@@ -172,7 +178,6 @@ def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.Dat
         0.5 * df["amount_zscore"].clip(-3, 3)
     )
 
-    # New features
     df["amount_percentile"] = df["amount"].rank(pct=True)
     df["amount_roundedness"] = (df["amount"] % 100 == 0).astype(int) | \
                                 ((df["amount"] % 50 == 0) & (df["amount"] > 100)).astype(int)
@@ -193,6 +198,42 @@ def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.Dat
     df["amt_x_velocity"] = df["amount"] * np.log1p(df["txn_velocity_1h"])
     df["spike_score"] = df["amount_cat_ratio"] * df["amount_zscore"].clip(0, 5)
 
+    # v5 features — must match train_model.py exactly
+    global_std = fit_stats["global_std"] if fit_stats else df["amount"].std()
+    df["amount_log_zscore"] = (df["amount_log"] - df["amount_log"].mean()) / max(df["amount_log"].std(), 0.1)
+    df["merchant_amt_ratio"] = df["amount"] / df.groupby("merchant")["amount"].transform("mean").clip(lower=1)
+    df["category_entropy"] = -df.groupby("category")["merchant"].transform(
+        lambda x: x.value_counts(normalize=True).apply(lambda p: p * np.log2(p + 1e-10)).sum()
+    )
+    df["hour_category_interaction"] = df["hour"] * df["category_mean_amount"]
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        df["txn_recency_score"] = 1.0 / (1.0 + df["days_since_last_txn"])
+    else:
+        df["txn_recency_score"] = 0.5
+    df["amount_binned"] = pd.cut(df["amount"], bins=[0, 50, 100, 200, 500, 1000, 5000, 100000],
+                                  labels=[0, 1, 2, 3, 4, 5, 6]).astype(float).fillna(3)
+    df["is_high_risk_hour"] = ((df["hour"] <= 5) | (df["hour"] >= 23)).astype(int)
+    df["merchant_category_risk"] = df["merchant_freq"] * df["is_unusual_hour"]
+    df["rolling_mean_ratio"] = df["amount"] / df["rolling_7d_mean"].clip(lower=1)
+    df["rolling_std_ratio"] = (df["amount"] - df["rolling_7d_mean"]) / df["rolling_7d_std"].clip(lower=1)
+    df["amount_percentile_category"] = df.groupby("category")["amount"].rank(pct=True)
+    df["is_new_merchant_risk"] = ((df["merchant_freq"] <= 2) & (df["amount_zscore"] > 1.5)).astype(int)
+    df["compound_risk_score"] = (
+        df["is_unusual_hour"] * 0.3 +
+        (df["merchant_freq"] <= 2).astype(int) * 0.3 +
+        (df["amount_zscore"] > 2).astype(int) * 0.4
+    )
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        df["time_since_midnight"] = df["timestamp"].dt.hour * 60 + df["timestamp"].dt.minute
+    else:
+        df["time_since_midnight"] = df["hour"] * 60
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        day_of_month = df["timestamp"].dt.day
+        df["is_payday_window"] = ((day_of_month >= 25) | (day_of_month <= 3)).astype(int)
+    else:
+        df["is_payday_window"] = 0
+    df["amount_deviation_squared"] = df["amount_deviation_from_rolling"] ** 2
+
     # Clip and clean
     df["amount_zscore"] = df["amount_zscore"].clip(-5, 5)
     df["amount_cat_ratio"] = df["amount_cat_ratio"].clip(0, 50)
@@ -200,10 +241,11 @@ def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.Dat
     df["merchant_risk_score"] = df["merchant_risk_score"].clip(0, 5)
     df["amount_to_global_mean_ratio"] = df["amount_to_global_mean_ratio"].clip(0, 50)
 
-    for col in FEATURES:
-        if col not in df.columns:
-            df[col] = 0
-        df[col] = df[col].replace([np.inf, -np.inf], 0).fillna(0)
+    if FEATURES is not None:
+        for col in FEATURES:
+            if col not in df.columns:
+                df[col] = 0
+            df[col] = df[col].replace([np.inf, -np.inf], 0).fillna(0)
 
     return df
 
@@ -280,7 +322,7 @@ def _get_triggered_rules(row, stats):
 # =============================================================================
 # MAIN INFERENCE FUNCTION
 # =============================================================================
-def detect_anomalies(transactions: list[dict], threshold: float | None = None) -> list[dict]:
+def detect_anomalies(transactions: list[dict], threshold: Optional[float] = None) -> list[dict]:
     if not _LOADED:
         load_models()
 
@@ -311,24 +353,35 @@ def detect_anomalies(transactions: list[dict], threshold: float | None = None) -
     X_final = np.column_stack([X_ext, rule_scores.reshape(-1, 1)])
 
     probs = {}
+    model_weights = {"rf": 0.15, "gb": 0.15, "xgb": 0.25, "lgbm": 0.25, "catboost": 0.10, "et": 0.10}
     for name, model in MODELS.items():
         probs[name] = model.predict_proba(X_final)[:, 1]
 
     n_models = len(probs)
-    weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
     total_w = 0
     ensemble_prob = np.zeros(len(X_final))
     for name, p in probs.items():
-        w = weights.get(name, 1.0 / n_models)
+        w = model_weights.get(name, 1.0 / n_models)
         ensemble_prob += w * p
         total_w += w
-    ensemble_prob /= total_w
+    if total_w > 0:
+        ensemble_prob /= total_w
+
+    # Individual model scores for debugging
+    model_scores = {}
+    for name, p in probs.items():
+        model_scores[name] = float(np.mean(p))
 
     results = []
     for i, row in df.iterrows():
         prob = float(ensemble_prob[i])
         is_anomaly, severity = _classify(prob)
         triggered_rules = _get_triggered_rules(row, TRAIN_STATS)
+
+        # Compute component scores
+        rule_score = float(rule_scores[i])
+        iso_score = float(rule_score * 0.25) if UNSUP_MODELS else 0.0
+        ml_score = float(prob * 0.75)
 
         results.append({
             "amount": float(row["amount"]),
@@ -340,6 +393,9 @@ def detect_anomalies(transactions: list[dict], threshold: float | None = None) -
             "is_anomaly": is_anomaly,
             "severity": severity,
             "triggered_rules": triggered_rules,
+            "isolation_score": round(iso_score, 4),
+            "rule_score": round(rule_score, 4),
+            "final_score": round(prob, 4),
         })
 
     return results

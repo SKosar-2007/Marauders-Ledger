@@ -33,8 +33,11 @@ def generate_narrative(anomaly: dict) -> str:
         f"Severity: {anomaly['severity']}\n"
         f"Triggered rules: {', '.join(anomaly.get('triggered_rules', []))}"
     )
-    response = _client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
-    return response.text
+    try:
+        response = _client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+        return response.text
+    except Exception:
+        return _fallback_narrative(anomaly)
 
 
 def _fallback_narrative(anomaly: dict) -> str:

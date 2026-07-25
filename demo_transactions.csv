@@ -1,0 +1,61 @@
+amount,category,merchant,hour,day,timestamp
+24.99,Food,Starbucks,8,1,2025-07-01 08:15:00
+142.50,Groceries,Whole Foods,18,1,2025-07-01 18:30:00
+9.99,Entertainment,Netflix,20,1,2025-07-01 20:00:00
+55.00,Transport,Uber,22,1,2025-07-01 22:10:00
+12.50,Food,Chipotle,12,2,2025-07-02 12:00:00
+89.99,Shopping,Amazon,14,2,2025-07-02 14:30:00
+35.00,Transport,Lyft,7,2,2025-07-02 07:45:00
+67.50,Food,Panera Bread,13,2,2025-07-02 13:15:00
+200.00,Utilities,Electric Co,10,3,2025-07-03 10:00:00
+45.00,Food,Subway,12,3,2025-07-03 12:30:00
+15.99,Entertainment,Spotify,9,3,2025-07-03 09:00:00
+120.00,Groceries,Costco,11,3,2025-07-03 11:45:00
+3200.00,Shopping,Louis Vuitton,2,4,2025-07-04 02:30:00
+28.50,Food,McDonalds,14,4,2025-07-04 14:00:00
+75.00,Entertainment,Cinemark,19,4,2025-07-04 19:30:00
+42.00,Transport,Shell Gas,8,4,2025-07-04 08:15:00
+9999.99,Shopping,WatchesOfSwitzerland,3,5,2025-07-05 03:45:00
+18.00,Food,Dunkin,7,5,2025-07-05 07:00:00
+150.00,Groceries,Trader Joes,17,5,2025-07-05 17:30:00
+55.00,Food,Chick-fil-A,12,5,2025-07-05 12:15:00
+34.99,Entertainment,Apple Music,10,6,2025-07-06 10:00:00
+225.00,Shopping,Nordstrom,15,6,2025-07-06 15:45:00
+8.50,Food,Starbucks,8,6,2025-07-06 08:30:00
+60.00,Transport,Uber,23,6,2025-07-06 23:00:00
+15000.00,Travel,BitcoinExchange,4,7,2025-07-07 04:00:00
+22.00,Food,Taco Bell,13,7,2025-07-07 13:30:00
+95.00,Groceries,Safeway,11,7,2025-07-07 11:00:00
+40.00,Transport,Lyft,6,7,2025-07-07 06:45:00
+1500.00,Shopping,Apple Store,20,8,2025-07-08 20:15:00
+16.50,Food,Wendys,12,8,2025-07-08 12:00:00
+85.00,Entertainment,AMC Theaters,19,8,2025-07-08 19:30:00
+30.00,Food,Dominoes,21,8,2025-07-08 21:00:00
+8750.00,Shopping,JewelryExchange,1,9,2025-07-09 01:15:00
+19.99,Entertainment,DisneyPlus,20,9,2025-07-09 20:30:00
+135.00,Groceries,Whole Foods,16,9,2025-07-09 16:00:00
+27.00,Food,Panda Express,12,9,2025-07-09 12:45:00
+48.00,Transport,Shell Gas,8,10,2025-07-10 08:00:00
+210.00,Shopping,BestBuy,14,10,2025-07-10 14:30:00
+14.00,Food,Popeyes,13,10,2025-07-10 13:15:00
+78.00,Food,Red Lobster,19,10,2025-07-10 19:00:00
+5000.00,Travel,CryptoWallet,2,11,2025-07-11 02:00:00
+21.00,Food,Burger King,12,11,2025-07-11 12:30:00
+110.00,Groceries,Aldi,10,11,2025-07-11 10:15:00
+38.00,Transport,Uber,17,11,2025-07-11 17:45:00
+180.00,Shopping,H&M,15,12,2025-07-12 15:00:00
+11.50,Food,Subway,12,12,2025-07-12 12:00:00
+92.00,Entertainment,ConcertVenue,21,12,2025-07-12 21:30:00
+44.00,Food,PFChangs,18,12,2025-07-12 18:45:00
+12000.00,Shopping,LuxuryBoutique,3,13,2025-07-13 03:30:00
+26.50,Food,JambaJuice,9,13,2025-07-13 09:00:00
+165.00,Groceries,Kroger,11,13,2025-07-13 11:30:00
+52.00,Transport,Lyft,7,13,2025-07-13 07:15:00
+290.00,Shopping,Zara,16,14,2025-07-14 16:00:00
+13.00,Food,Chiptole,12,14,2025-07-14 12:30:00
+68.00,Food,OliveGarden,19,14,2025-07-14 19:15:00
+25.00,Entertainment,Hulu,10,14,2025-07-14 10:00:00
+6500.00,Shopping,ElectronicsStore,4,15,2025-07-15 04:45:00
+17.50,Food,Panera,8,15,2025-07-15 08:30:00
+130.00,Groceries,Costco,14,15,2025-07-15 14:00:00
+35.00,Transport,Shell Gas,7,15,2025-07-15 07:00:00

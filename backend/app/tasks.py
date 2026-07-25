@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import traceback
 
-from app.celery_app import celery
+from app.celery_app import app as celery
 from app.database import (
     get_transactions_by_batch,
+    init_db,
     insert_anomalies,
     insert_narrative,
     update_batch_status,
@@ -18,6 +19,16 @@ from app.gemini import generate_narrative
 from app.inference import detect_anomalies, load_models
 from app.tts import generate_audio
 
+_worker_initialized = False
+
+
+def _ensure_init():
+    global _worker_initialized
+    if not _worker_initialized:
+        init_db()
+        load_models("models")
+        _worker_initialized = True
+
 
 @celery.task(bind=True, name="app.tasks.process_upload")
 def process_upload(self, batch_id: str, user_id: int):
@@ -26,6 +37,7 @@ def process_upload(self, batch_id: str, user_id: int):
     Steps: load transactions -> detect anomalies -> store results -> update status.
     """
     try:
+        _ensure_init()
         update_batch_status(batch_id, "processing")
 
         txns = get_transactions_by_batch(batch_id)
