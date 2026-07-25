@@ -6,12 +6,12 @@ Load pre-trained ensemble (XGB + LGBM + RF + GB) and run anomaly detection.
 Designed for FastAPI /analyze endpoint integration.
 """
 
-import joblib
-import pandas as pd
-import numpy as np
-from typing import List, Dict, Optional
 import json
 import os
+
+import joblib
+import numpy as np
+import pandas as pd
 
 try:
     from xgboost import XGBClassifier
@@ -96,7 +96,7 @@ def load_models(model_dir: str = "models"):
 # =============================================================================
 # FEATURE ENGINEERING (25 features, must match training)
 # =============================================================================
-def engineer_features(df: pd.DataFrame, fit_stats: Optional[Dict] = None) -> pd.DataFrame:
+def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.DataFrame:
     df = df.copy()
 
     df["amount_log"] = np.log1p(df["amount"])
@@ -264,7 +264,7 @@ def _get_triggered_rules(row, stats):
 # =============================================================================
 # MAIN INFERENCE FUNCTION
 # =============================================================================
-def detect_anomalies(transactions: List[Dict], threshold: float = None) -> List[Dict]:
+def detect_anomalies(transactions: list[dict], threshold: float = None) -> list[dict]:
     if not _LOADED:
         load_models()
 

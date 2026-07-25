@@ -1,68 +1,119 @@
 {
   "merchant_freq_map": {
-    "Swiggy": 481,
-    "Local Cafe": 451,
-    "KFC": 423,
-    "Zomato": 419,
-    "Amazon": 414,
-    "Flipkart": 398,
-    "Dominos": 285,
-    "Myntra": 260,
-    "Netflix": 240,
-    "GooglePay": 240,
-    "Paytm": 228,
-    "Spotify": 225,
-    "Meesho": 221,
-    "PhonePe": 212,
-    "Hotstar": 184,
-    "Uber": 156,
-    "Ajio": 124,
-    "Jio": 123,
-    "YouTube": 117,
-    "IRCTC": 115,
-    "Rapido": 115,
-    "Ola": 103,
-    "RedBus": 88,
+    "Airtel": 67,
+    "Ajio": 122,
+    "Amazon": 354,
+    "Crypto Exchange": 3,
+    "Dominos": 240,
+    "Flipkart": 316,
+    "Foreign Exchange": 3,
+    "GooglePay": 192,
+    "Hotstar": 141,
+    "IRCTC": 75,
+    "International Transfer": 4,
+    "Jio": 104,
     "JioCinema": 81,
-    "Airtel": 73,
-    "Unknown Merchant": 44
+    "KFC": 334,
+    "Local Cafe": 352,
+    "Meesho": 186,
+    "Myntra": 207,
+    "Netflix": 216,
+    "Offshore Services": 8,
+    "Ola": 96,
+    "Overseas Wire": 3,
+    "Paytm": 181,
+    "PhonePe": 191,
+    "Rapido": 111,
+    "RedBus": 77,
+    "Spotify": 181,
+    "Suspicious Shop": 4,
+    "Swiggy": 415,
+    "Uber": 132,
+    "Unknown Merchant": 1,
+    "Wire Transfer": 3,
+    "YouTube": 86,
+    "Zomato": 364
   },
-  "cat_mean_map": {
-    "Bills": 896.9588687782806,
-    "Entertainment": 231.9879508196721,
-    "Food": 230.9811052123552,
-    "Shopping": 584.8835714285714,
-    "Travel": 372.616323024055
+  "merchant_rarity_map": {
+    "Airtel": 0.9861855670103092,
+    "Ajio": 0.9748453608247423,
+    "Amazon": 0.9270103092783505,
+    "Crypto Exchange": 0.999381443298969,
+    "Dominos": 0.9505154639175257,
+    "Flipkart": 0.9348453608247422,
+    "Foreign Exchange": 0.999381443298969,
+    "GooglePay": 0.9604123711340207,
+    "Hotstar": 0.9709278350515463,
+    "IRCTC": 0.9845360824742269,
+    "International Transfer": 0.9991752577319588,
+    "Jio": 0.9785567010309278,
+    "JioCinema": 0.983298969072165,
+    "KFC": 0.9311340206185567,
+    "Local Cafe": 0.9274226804123711,
+    "Meesho": 0.9616494845360825,
+    "Myntra": 0.9573195876288659,
+    "Netflix": 0.9554639175257732,
+    "Offshore Services": 0.9983505154639175,
+    "Ola": 0.9802061855670103,
+    "Overseas Wire": 0.999381443298969,
+    "Paytm": 0.962680412371134,
+    "PhonePe": 0.9606185567010309,
+    "Rapido": 0.9771134020618557,
+    "RedBus": 0.9841237113402062,
+    "Spotify": 0.962680412371134,
+    "Suspicious Shop": 0.9991752577319588,
+    "Swiggy": 0.9144329896907216,
+    "Uber": 0.9727835051546392,
+    "Unknown Merchant": 0.9997938144329896,
+    "Wire Transfer": 0.999381443298969,
+    "YouTube": 0.9822680412371134,
+    "Zomato": 0.9249484536082474
   },
-  "global_mean": 433.2815532646048,
-  "global_std": 815.6917570105666,
   "cat_stats": [
     {
       "category": "Bills",
-      "cat_mean": 896.9588687782806,
-      "cat_std": 921.9111454891959
+      "cat_mean": 904.8424357239513,
+      "cat_std": 953.2829431848819
     },
     {
       "category": "Entertainment",
-      "cat_mean": 231.9879508196721,
-      "cat_std": 457.675356939783
+      "cat_mean": 249.09783898305082,
+      "cat_std": 492.69178015407493
     },
     {
       "category": "Food",
-      "cat_mean": 230.9811052123552,
-      "cat_std": 831.9393612041082
+      "cat_mean": 224.1294110787172,
+      "cat_std": 844.7048223698224
     },
     {
       "category": "Shopping",
-      "cat_mean": 584.8835714285714,
-      "cat_std": 814.3606156865336
+      "cat_mean": 562.5044043624162,
+      "cat_std": 694.4163814425501
     },
     {
       "category": "Travel",
-      "cat_mean": 372.616323024055,
-      "cat_std": 613.061385103098
+      "cat_mean": 401.5453629032258,
+      "cat_std": 885.268356801831
     }
   ],
-  "rolling_mean": 292.3600000000006,
-  "rolling_std": 247.18125212081148
+  "cat_mean_map": {
+    "Bills": 904.8424357239513,
+    "Entertainment": 249.09783898305082,
+    "Food": 224.1294110787172,
+    "Shopping": 562.5044043624162,
+    "Travel": 401.5453629032258
+  },
+  "cat_std_map": {
+    "Bills": 953.2829431848819,
+    "Entertainment": 492.69178015407493,
+    "Food": 844.7048223698224,
+    "Shopping": 694.4163814425501,
+    "Travel": 885.268356801831
+  },
+  "global_mean": 432.802787628866,
+  "global_std": 826.3653860414626,
+  "iqr_lower": -436.2524999999998,
+  "iqr_upper": 1106.2274999999997,
+  "rolling_mean": 432.9010115954835,
+  "rolling_std": 462.87677592352884
 }

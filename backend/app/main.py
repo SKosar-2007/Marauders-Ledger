@@ -23,6 +23,12 @@ from app.gemini import generate_narrative
 from app.inference import detect_anomalies, load_models
 from app.schemas import AnomalyResult, BatchResponse, HealthResponse, NarrativeResponse
 from app.tts import generate_audio
+from app.vector_store import (
+    _encode_transaction as _encode_txn_for_vec,
+)
+from app.vector_store import (
+    search_similar_transactions,
+)
 
 
 @asynccontextmanager
@@ -117,7 +123,8 @@ def _row_to_anomaly(row: dict) -> dict:
         "final_score": row.get("final_score", 0),
         "is_anomaly": bool(row["is_anomaly"]),
         "severity": row["severity"],
-        "triggered_rules": row["triggered_rules"].split(",") if row.get("triggered_rules") else [],
+        "triggered_rules": row["triggered_rules"] if isinstance(row.get("triggered_rules"), list) else
+                          row["triggered_rules"].split(",") if row.get("triggered_rules") else [],
         "detected_at": row.get("detected_at"),
     }
 
@@ -134,6 +141,22 @@ async def get_anomaly(anomaly_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="Anomaly not found")
     return _row_to_anomaly(row)
+
+
+@app.post("/api/transactions/similar")
+async def similar_transactions(amount: float, category: str, merchant: str, hour: int, day: int):
+    vec = _encode_txn_for_vec({"amount": amount, "category": category, "merchant": merchant, "hour": hour, "day": day})
+    results = await asyncio.to_thread(search_similar_transactions, vec, 5)
+    return [
+        {
+            "amount": r["amount"],
+            "category": r.get("category"),
+            "merchant": r.get("merchant"),
+            "hour": r.get("hour"),
+            "day": r.get("day"),
+        }
+        for r in results
+    ]
 
 
 @app.get("/api/narratives/{anomaly_id}", response_model=NarrativeResponse)

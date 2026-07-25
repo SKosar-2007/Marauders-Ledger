@@ -5,20 +5,29 @@ Stability Test: Run training 10 times to verify consistency.
 
 import sys
 import time
-import numpy as np
-import pandas as pd
-from pathlib import Path
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, IsolationForest
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.svm import OneClassSVM
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import f1_score, precision_score, recall_score
 import warnings
+from pathlib import Path
+
+import numpy as np
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    IsolationForest,
+    RandomForestClassifier,
+)
+from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.neighbors import LocalOutlierFactor
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import OneClassSVM
+
 warnings.filterwarnings("ignore")
 
 sys.path.insert(0, str(Path(__file__).parent))
-from train_model import generate_data, engineer_features, compute_rule_score, compute_user_stats
-
+from train_model import (
+    compute_rule_score,
+    compute_user_stats,
+    engineer_features,
+    generate_data,
+)
 
 FEATURES = [
     "amount", "amount_log", "hour", "is_unusual_hour", "is_weekend",

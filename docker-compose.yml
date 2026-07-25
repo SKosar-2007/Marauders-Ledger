@@ -1,0 +1,25 @@
+services:
+  vectorai:
+    image: actian/vectorai:latest
+    container_name: vectorai
+    ports:
+      - "6573:6573"
+      - "6574:6574"
+      - "6575:6575"
+    environment:
+      - ACTIAN_VECTORAI_ACCEPT_EULA=YES
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    container_name: marauders-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - VECTORAI_HOST=vectorai
+    env_file:
+      - .env
+    depends_on:
+      - vectorai
+    restart: unless-stopped

@@ -5,9 +5,10 @@ Marauder's Ledger - Sample CSV Generator
 Generate 3 sample CSV files for demo and testing.
 """
 
-import pandas as pd
-import numpy as np
 import os
+
+import numpy as np
+import pandas as pd
 
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -129,7 +130,7 @@ def generate_compromised_csv(n=50, n_anomalies=3, seed=43):
 
     df.to_csv(f"{DATA_DIR}/compromised.csv", index=False)
     print(f"Created {DATA_DIR}/compromised.csv ({len(df)} rows, {n_anomalies} anomalies)")
-    print(f"  Anomalies:")
+    print("  Anomalies:")
     for i, idx in enumerate(anomaly_indices):
         print(f"    {anomaly_descriptions[i]['desc']}")
     return df
@@ -206,7 +207,7 @@ def generate_mixed_csv(n=100, n_anomalies=5, seed=44):
 
     df.to_csv(f"{DATA_DIR}/mixed.csv", index=False)
     print(f"Created {DATA_DIR}/mixed.csv ({len(df)} rows, {n_anomalies} anomalies)")
-    print(f"  Anomalies:")
+    print("  Anomalies:")
     for i, idx in enumerate(anomaly_indices):
         print(f"    {anomaly_descriptions[i]['desc']}")
     return df

@@ -6,9 +6,10 @@ Tests for supervised ensemble: RF + GB + IF/LOF/OCSVM + Rules.
 Run after train_model.py to validate.
 """
 
-import sys
-import os
 import json
+import os
+import sys
+
 import numpy as np
 import pandas as pd
 
@@ -39,7 +40,7 @@ def test_data_generation():
 
 def test_feature_engineering():
     """Test features are computed correctly with no NaN/inf."""
-    from train_model import generate_data, engineer_features, FEATURES
+    from train_model import FEATURES, engineer_features, generate_data
 
     train = generate_data(1000, 0.03, 42)
     test = generate_data(200, 0.03, 142)
@@ -61,13 +62,17 @@ def test_feature_engineering():
 
 def test_supervised_training():
     """Test that RF + GB train successfully."""
-    from train_model import (
-        generate_data, engineer_features, FEATURES,
-        compute_unsupervised_scores, add_unsupervised_features,
-        compute_user_stats, compute_rule_scores_for_df
-    )
+    from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
     from sklearn.preprocessing import StandardScaler
-    from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+    from train_model import (
+        FEATURES,
+        add_unsupervised_features,
+        compute_rule_scores_for_df,
+        compute_user_stats,
+        engineer_features,
+        generate_data,
+    )
 
     train = generate_data(1000, 0.03, 42)
     train_feat, _ = engineer_features(train, fit_stats=None)
@@ -125,12 +130,17 @@ def test_rule_scoring():
 
 def test_hybrid_pipeline():
     """Test full pipeline: features -> models -> hybrid scores."""
-    from train_model import (
-        generate_data, engineer_features, FEATURES,
-        add_unsupervised_features, compute_user_stats, compute_rule_scores_for_df
-    )
+    from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
     from sklearn.preprocessing import StandardScaler
-    from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+
+    from train_model import (
+        FEATURES,
+        add_unsupervised_features,
+        compute_rule_scores_for_df,
+        compute_user_stats,
+        engineer_features,
+        generate_data,
+    )
 
     train = generate_data(1000, 0.03, 42)
     test = generate_data(200, 0.03, 142)
@@ -174,8 +184,7 @@ def test_hybrid_pipeline():
 
 def test_smoke_predictions():
     """Test predictions with realistic transaction context."""
-    from inference import load_models, detect_anomalies
-    import pandas as pd
+    from inference import detect_anomalies, load_models
 
     load_models("models")
 

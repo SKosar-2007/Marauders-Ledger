@@ -5,17 +5,21 @@ Phase 4: Testing and Hardening
 Tests inference.py with sample CSVs and validates all requirements.
 """
 
-import sys
-import os
 import json
-import pandas as pd
-import numpy as np
+import os
+import sys
 from pathlib import Path
+
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 import inference
-from generate_samples import generate_normal_csv, generate_compromised_csv, generate_mixed_csv
+from generate_samples import (
+    generate_compromised_csv,
+    generate_mixed_csv,
+    generate_normal_csv,
+)
 
 
 def test_model_files_exist():
@@ -72,7 +76,7 @@ def test_smoke_inference():
     results = inference.detect_anomalies(sample)
     anomalies = [r for r in results if r["is_anomaly"]]
     normals = [r for r in results if not r["is_anomaly"]]
-    print(f"  Input: 5 samples")
+    print("  Input: 5 samples")
     print(f"  Detected: {len(anomalies)} anomalies, {len(normals)} normal")
     assert len(results) == 5, f"Expected 5 results, got {len(results)}"
     assert all("probability" in r for r in results), "Missing probability field"
@@ -99,7 +103,7 @@ def test_normal_csv():
     print(f"  Detected: {len(detected)}/50 anomalies")
     for r in detected:
         print(f"    Rs.{r['amount']:>8.0f} | {r['category']:<14} | {r['merchant']:<20} | Prob: {r['probability']:.4f}")
-    print(f"  PASS: normal.csv processed successfully")
+    print("  PASS: normal.csv processed successfully")
     return True
 
 
@@ -122,7 +126,7 @@ def test_compromised_csv():
     print(f"  Detected: {len(detected)}/50 anomalies (actual: 3)")
     for r in detected:
         print(f"    Rs.{r['amount']:>8.0f} | {r['category']:<14} | {r['merchant']:<20} | Prob: {r['probability']:.4f} | {r['severity']}")
-    print(f"  PASS: compromised.csv processed successfully")
+    print("  PASS: compromised.csv processed successfully")
     return True
 
 
@@ -144,7 +148,7 @@ def test_mixed_csv():
     print(f"  Detected: {len(detected)}/100 anomalies (actual: 5)")
     for r in detected:
         print(f"    Rs.{r['amount']:>8.0f} | {r['category']:<14} | {r['merchant']:<20} | Prob: {r['probability']:.4f} | {r['severity']}")
-    print(f"  PASS: mixed.csv processed successfully")
+    print("  PASS: mixed.csv processed successfully")
     return True
 
 
@@ -162,7 +166,7 @@ def test_inference_standalone():
     print(f"  Scaler: {type(inference.SCALER).__name__}")
     print(f"  Features: {len(inference.FEATURES)} columns")
     print(f"  Unsupervised: {[type(m).__name__ for m in inference.UNSUP_MODELS]}")
-    print(f"  PASS: All models loaded and accessible")
+    print("  PASS: All models loaded and accessible")
     return True
 
 

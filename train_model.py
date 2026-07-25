@@ -14,21 +14,29 @@ Key improvements over v3:
 - Repeated stratified k-fold CV
 """
 
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import (
-    IsolationForest, RandomForestClassifier, GradientBoostingClassifier,
-)
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.svm import OneClassSVM
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
-from sklearn.metrics import f1_score, precision_score, recall_score, precision_recall_curve
-import joblib
 import json
 import os
 import warnings
+
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import (
+    GradientBoostingClassifier,
+    IsolationForest,
+    RandomForestClassifier,
+)
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import (
+    f1_score,
+    precision_score,
+    recall_score,
+)
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.neighbors import LocalOutlierFactor
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import OneClassSVM
+
 warnings.filterwarnings("ignore")
 
 try:
@@ -434,7 +442,7 @@ def compute_rule_scores_for_df(df, stats):
 def run_cross_validation(df, n_splits=10, n_repeats=2):
     print(f"\n{'='*60}")
     print(f"  {n_repeats}x{n_splits}-FOLD REPEATED STRATIFIED CV")
-    print(f"  Ensemble: XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules")
+    print("  Ensemble: XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules")
     print(f"{'='*60}")
 
     df_feat, fit_stats = engineer_features(df, fit_stats=None)
@@ -504,7 +512,7 @@ def run_cross_validation(df, n_splits=10, n_repeats=2):
     ci_lower, ci_upper = _bootstrap_ci([m["f1"] for m in fold_metrics])
 
     print(f"\n{'='*60}")
-    print(f"  CROSS-VALIDATION RESULTS")
+    print("  CROSS-VALIDATION RESULTS")
     print(f"{'='*60}")
     print(f"  F1 Score:       {avg_f1:.4f} +/- {std_f1:.4f}")
     print(f"  95% CI:         [{ci_lower:.4f}, {ci_upper:.4f}]")
@@ -860,13 +868,13 @@ if __name__ == "__main__":
     print("\n[Step 3] Running repeated stratified cross-validation...")
     cv_metrics, avg_f1, avg_thresh = run_cross_validation(train_df, n_splits=N_FOLDS, n_repeats=N_REPEATS)
 
-    print(f"\n[Step 4] Training final model on full training set...")
+    print("\n[Step 4] Training final model on full training set...")
     result = train_full(train_df, test_df)
 
-    print(f"\n[Step 5] Saving models and metadata...")
+    print("\n[Step 5] Saving models and metadata...")
     save_models(result, cv_metrics)
 
-    print(f"\n[Step 6] Creating visualizations...")
+    print("\n[Step 6] Creating visualizations...")
     create_visualizations(
         test_df, result["fit_stats"], result["scaler"],
         result["unsup_models"], result["train_stats"], result["threshold"]
