@@ -12,14 +12,17 @@ export function useUploadAndAnalyze() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['anomalies'] })
+      queryClient.invalidateQueries({ queryKey: ['spending-day'] })
+      queryClient.invalidateQueries({ queryKey: ['spending-category'] })
+      queryClient.invalidateQueries({ queryKey: ['batches'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }
 
-export function useAnomalies(userId: string) {
+export function useAnomalies(severity?: string) {
   return useQuery({
-    queryKey: ['anomalies', userId],
-    queryFn: () => getAnomalies(userId),
-    enabled: !!userId,
+    queryKey: ['anomalies', severity],
+    queryFn: () => getAnomalies(severity),
   })
 }

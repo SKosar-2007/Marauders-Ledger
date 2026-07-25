@@ -2,22 +2,20 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-
-const RECENT_EXPORTS = [
-  { name: 'July Anomaly Report', type: 'Standard Scroll', date: 'Jul 25, 2026', status: 'ready' },
-  { name: 'Q3 Financial Summary', type: 'Sealed Ledger', date: 'Jul 20, 2026', status: 'ready' },
-  { name: 'Weekly Mischief Log', type: 'Standard Scroll', date: 'Jul 18, 2026', status: 'ready' },
-]
-
-const DIRECTIVES = [
-  { title: 'Ministry Directive 7B', body: 'All anomaly reports must be submitted before the full moon.', date: 'Jul 24, 2026' },
-  { title: 'Quill Update v2.1', body: 'New export format "Sealed Ledger" now available for sensitive data.', date: 'Jul 22, 2026' },
-]
+import { useAnomalies } from '../hooks/useAnomalies'
 
 export default function DailyProphet() {
   const [dept, setDept] = useState('auror')
   const [type, setType] = useState('anomaly')
   const [format, setFormat] = useState('scroll')
+  const { data: anomalies = [] } = useAnomalies()
+
+  const RECENT_EXPORTS = anomalies.slice(0, 3).map((a, i) => ({
+    name: `${a.category} Report — ${a.merchant}`,
+    type: 'Standard Scroll',
+    date: a.detected_at ? new Date(a.detected_at).toLocaleDateString() : 'Jul 25, 2026',
+    status: 'ready',
+  }))
 
   return (
     <div className="min-h-screen ml-[72px]">
@@ -29,7 +27,6 @@ export default function DailyProphet() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Report Generator */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="lg:col-span-2 bg-[#faf3e6] rounded-xl p-6 shadow-md">
             <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Materialize New Report</h3>
@@ -84,45 +81,45 @@ export default function DailyProphet() {
             </button>
           </motion.div>
 
-          {/* Ministry Directives */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="bg-[#faf3e6] rounded-xl p-6 shadow-md">
             <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Ministry Directives</h3>
             <div className="space-y-4">
-              {DIRECTIVES.map((d, i) => (
-                <div key={i} className="p-4 bg-white/50 rounded-lg border-l-2 border-[#735c00]">
-                  <h4 className="font-cinzel text-xs text-[#2c1810] mb-1">{d.title}</h4>
-                  <p className="font-crimson text-sm text-[#504440]">{d.body}</p>
-                  <span className="font-mono text-[10px] text-[#504440] mt-2 block">{d.date}</span>
-                </div>
-              ))}
+              <div className="p-4 bg-white/50 rounded-lg border-l-2 border-[#735c00]">
+                <h4 className="font-cinzel text-xs text-[#2c1810] mb-1">Anomaly Review Policy</h4>
+                <p className="font-crimson text-sm text-[#504440]">All high-severity anomalies must be reviewed within 24 hours.</p>
+                <span className="font-mono text-[10px] text-[#504440] mt-2 block">Active</span>
+              </div>
+              <div className="p-4 bg-white/50 rounded-lg border-l-2 border-[#735c00]">
+                <h4 className="font-cinzel text-xs text-[#2c1810] mb-1">Export Format v2.1</h4>
+                <p className="font-crimson text-sm text-[#504440]">New export format "Sealed Ledger" now available for sensitive data.</p>
+                <span className="font-mono text-[10px] text-[#504440] mt-2 block">Active</span>
+              </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Recent Exports */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-          className="mt-8 bg-[#faf3e6] rounded-xl p-6 shadow-md">
-          <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Recent Exports</h3>
-          <div className="grid grid-cols-[1fr_1fr_1fr_100px_100px] gap-4 px-4 py-2 border-b border-[#735c00]/20">
-            {['Report', 'Format', 'Date', '', ''].map((h, i) => (
-              <span key={i} className="font-mono text-[10px] text-[#504440] uppercase tracking-wider">{h}</span>
-            ))}
-          </div>
-          {RECENT_EXPORTS.map((e, i) => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_100px_100px] gap-4 px-4 py-3 border-b border-[#735c00]/10 hover:bg-[#f4e0bb]/30 transition-colors">
-              <span className="font-crimson text-sm text-[#2c1810] font-semibold">{e.name}</span>
-              <span className="font-crimson text-xs text-[#504440]">{e.type}</span>
-              <span className="font-mono text-xs text-[#504440]">{e.date}</span>
-              <button className="text-[#735c00] hover:text-[#2c1810] transition-colors">
-                <span className="material-symbols-outlined text-[18px]">download</span>
-              </button>
-              <button className="text-[#735c00] hover:text-[#2c1810] transition-colors">
-                <span className="material-symbols-outlined text-[18px]">send</span>
-              </button>
+        {RECENT_EXPORTS.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            className="mt-8 bg-[#faf3e6] rounded-xl p-6 shadow-md">
+            <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Recent Exports</h3>
+            <div className="grid grid-cols-[1fr_1fr_1fr_100px] gap-4 px-4 py-2 border-b border-[#735c00]/20">
+              {['Report', 'Format', 'Date', ''].map((h, i) => (
+                <span key={i} className="font-mono text-[10px] text-[#504440] uppercase tracking-wider">{h}</span>
+              ))}
             </div>
-          ))}
-        </motion.div>
+            {RECENT_EXPORTS.map((e, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1fr_1fr_100px] gap-4 px-4 py-3 border-b border-[#735c00]/10 hover:bg-[#f4e0bb]/30 transition-colors">
+                <span className="font-crimson text-sm text-[#2c1810] font-semibold">{e.name}</span>
+                <span className="font-crimson text-xs text-[#504440]">{e.type}</span>
+                <span className="font-mono text-xs text-[#504440]">{e.date}</span>
+                <button className="text-[#735c00] hover:text-[#2c1810] transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">download</span>
+                </button>
+              </div>
+            ))}
+          </motion.div>
+        )}
       </main>
       <Footer />
     </div>

@@ -1,4 +1,21 @@
 services:
+  vectorai:
+    image: actian/vectorai:community
+    container_name: marauders-vectorai
+    ports:
+      - "6574:6574"
+    environment:
+      - VECTORAI_LICENSE_KEY=H894W-WBGRK-J74P-HCP8D-JJ9BC-G9V7
+    volumes:
+      - vectorai-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "vectorai", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   backend:
     build:
       context: ./backend
@@ -7,6 +24,12 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    environment:
+      - VECTORAI_HOST=vectorai
+      - VECTORAI_PORT=6574
+    depends_on:
+      vectorai:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/health').raise_for_status()"]
@@ -24,3 +47,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  vectorai-data:

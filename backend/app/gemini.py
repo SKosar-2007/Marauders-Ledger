@@ -7,17 +7,18 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-_model = None
+_client = None
 
-if API_KEY and API_KEY != "your_key_here":
-    import google.generativeai as genai
-
-    genai.configure(api_key=API_KEY)
-    _model = genai.GenerativeModel("gemini-2.0-flash")
+if API_KEY and API_KEY != "your_key_here" and API_KEY != "your_gemini_api_key_here":
+    try:
+        from google import genai
+        _client = genai.Client(api_key=API_KEY)
+    except Exception:
+        _client = None
 
 
 def generate_narrative(anomaly: dict) -> str:
-    if _model is None:
+    if _client is None:
         return _fallback_narrative(anomaly)
 
     prompt = (
@@ -28,11 +29,11 @@ def generate_narrative(anomaly: dict) -> str:
         f"Category: {anomaly['category']}\n"
         f"Merchant: {anomaly['merchant']}\n"
         f"Hour: {anomaly['hour']}:00\n"
-        f"Day: {anomaly['day']}\n"
+        f"Day: {anomaly.get('day', 'N/A')}\n"
         f"Severity: {anomaly['severity']}\n"
         f"Triggered rules: {', '.join(anomaly.get('triggered_rules', []))}"
     )
-    response = _model.generate_content(prompt)
+    response = _client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
     return response.text
 
 

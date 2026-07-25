@@ -14,17 +14,11 @@ import { setAnomalyStatus } from '../services/api'
 import { exportAnomalyReport } from '../services/pdfExport'
 import { useToast } from '../context/ToastContext'
 
-const TETHERED_TXNS = [
-  { date: 'Oct 31, 1981', entity: 'Ollivanders', amount: 450, status: 'cleared' },
-  { date: 'Oct 31, 1981', entity: 'Flourish and Blotts', amount: 320, status: 'investigating' },
-  { date: 'Oct 31, 1981', entity: 'Unknown Gringotts Vault', amount: 680, status: 'investigating' },
-]
-
 export default function AnomalyDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { showToast } = useToast()
-  const { data: anomalies = [] } = useAnomalies('default')
+  const { data: anomalies = [] } = useAnomalies()
   const { data: narrative, isLoading: narrativeLoading } = useNarrative(id || '')
   const { data: audioBlob, isLoading: audioLoading, isError: audioError } = useAudio(id || '')
   const [anomalyStatus, setAnomalyStatusState] = useState<string>('pending')
@@ -71,7 +65,6 @@ export default function AnomalyDetail() {
     <div className="min-h-screen ml-[72px]">
       <Header />
       <main className="w-full pt-16 px-4 lg:px-10 max-w-[1200px] mx-auto pb-24">
-        {/* Header Card */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="relative bg-[#f4e0bb] rounded-xl p-8 mb-6 parchment-edge shadow-md mt-8">
           <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-[#735c00]/20 pointer-events-none" />
@@ -132,7 +125,6 @@ export default function AnomalyDetail() {
           </div>
         </motion.div>
 
-        {/* Score Gauges */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <ScoreGauge score={anomaly.isolation_score} label="Arcane ML Model" color={anomaly.isolation_score > 0.6 ? '#dc2626' : '#735c00'}
@@ -144,14 +136,12 @@ export default function AnomalyDetail() {
             description={anomaly.severity === 'high' ? 'Requires Immediate Attention' : 'Under Investigation'} />
         </motion.div>
 
-        {/* Narrative + Audio */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
           className="space-y-4 mb-6">
           <NarrativeCard text={narrative?.text || ''} isLoading={narrativeLoading} />
           <AudioPlayer audioUrl={audioUrl} isLoading={audioLoading} error={audioError} />
         </motion.div>
 
-        {/* Triggered Rules */}
         {anomaly.triggered_rules.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
             className="bg-[#faf3e6] rounded-xl p-6 shadow-md mb-6">
@@ -166,27 +156,20 @@ export default function AnomalyDetail() {
           </motion.div>
         )}
 
-        {/* Tethered Transactions */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
           className="bg-[#faf3e6] rounded-xl p-6 shadow-md">
-          <h3 className="font-cinzel text-sm text-[#2c1810] mb-4 uppercase tracking-widest">Tethered Transactions</h3>
+          <h3 className="font-cinzel text-sm text-[#2c1810] mb-4 uppercase tracking-widest">Related Transactions</h3>
           <div className="grid grid-cols-[1fr_2fr_1fr_1fr] gap-4 px-4 py-2 border-b border-[#735c00]/20">
-            {['Date', 'Entity', 'Amount', 'Status'].map((h) => (
+            {['Category', 'Merchant', 'Amount', 'Severity'].map((h) => (
               <span key={h} className="font-mono text-[10px] text-[#504440] uppercase tracking-wider">{h}</span>
             ))}
           </div>
-          {TETHERED_TXNS.map((txn, i) => (
-            <div key={i} className="grid grid-cols-[1fr_2fr_1fr_1fr] gap-4 px-4 py-3 border-b border-[#735c00]/10 hover:bg-[#f4e0bb]/30 transition-colors">
-              <span className="font-mono text-xs text-[#504440]">{txn.date}</span>
-              <span className="font-crimson text-sm text-[#2c1810]">{txn.entity}</span>
-              <span className="font-mono text-xs text-[#dc2626]">₹{txn.amount}</span>
-              <span className={`font-crimson text-xs px-2 py-1 rounded-full w-fit ${
-                txn.status === 'cleared' ? 'bg-[#2d6a4f]/10 text-[#2d6a4f]' : 'bg-[#dc2626]/10 text-[#dc2626]'
-              }`}>
-                {txn.status}
-              </span>
-            </div>
-          ))}
+          <div className="grid grid-cols-[1fr_2fr_1fr_1fr] gap-4 px-4 py-3 border-b border-[#735c00]/10 hover:bg-[#f4e0bb]/30 transition-colors">
+            <span className="font-mono text-xs text-[#504440]">{anomaly.category}</span>
+            <span className="font-crimson text-sm text-[#2c1810]">{anomaly.merchant}</span>
+            <span className="font-mono text-xs text-[#dc2626]">₹{anomaly.amount}</span>
+            <SeverityBadge severity={anomaly.severity} />
+          </div>
         </motion.div>
       </main>
       <Footer />

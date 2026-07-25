@@ -1,26 +1,27 @@
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-
-const TRANSACTIONS = [
-  { date: '2026-07-25', merchant: 'Honeydukes', amount: 420, category: 'Food', anomaly: false },
-  { date: '2026-07-24', merchant: 'Madam Malkin\'s', amount: 1200, category: 'Shopping', anomaly: false },
-  { date: '2026-07-24', merchant: 'Gringotts Exchange', amount: 15000, category: 'Bills', anomaly: true },
-  { date: '2026-07-23', merchant: 'Zonko\'s Joke Shop', amount: 350, category: 'Shopping', anomaly: false },
-  { date: '2026-07-22', merchant: 'The Leaky Cauldron', amount: 680, category: 'Food', anomaly: false },
-  { date: '2026-07-21', merchant: 'Ministry of Magic', amount: 2500, category: 'Bills', anomaly: false },
-  { date: '2026-07-20', merchant: 'Owl Post Office', amount: 150, category: 'Bills', anomaly: false },
-  { date: '2026-07-20', merchant: 'Unknown Vault 713', amount: 8400, category: 'Bills', anomaly: true },
-]
-
-const VAULT_STATS = [
-  { label: 'Total Balance', value: '₹124,350', icon: 'account_balance', change: '+₹2,400 this month', positive: true },
-  { label: 'Highest Spent', value: '₹15,000', icon: 'trending_up', change: 'Gringotts Exchange — Suspicious', positive: false },
-  { label: 'Transactions', value: '47', icon: 'receipt_long', change: '12 flagged for review', positive: false },
-  { label: 'Galleons Saved', value: '₹8,200', icon: 'savings', change: 'Compared to last month', positive: true },
-]
+import SeverityBadge from '../components/SeverityBadge'
+import { useAnomalies } from '../hooks/useAnomalies'
+import { useSpendingByCategory } from '../hooks/useSpending'
 
 export default function Vault() {
+  const navigate = useNavigate()
+  const { data: anomalies = [] } = useAnomalies()
+  const { data: spendingData = [] } = useSpendingByCategory()
+
+  const totalBalance = spendingData.reduce((sum, s) => sum + s.total, 0)
+  const totalTxns = anomalies.length
+  const flaggedCount = anomalies.filter((a) => a.severity === 'high').length
+
+  const VAULT_STATS = [
+    { label: 'Total Spent', value: `₹${totalBalance.toLocaleString()}`, icon: 'account_balance', change: `${spendingData.length} categories`, positive: true },
+    { label: 'Anomalies', value: String(totalTxns), icon: 'trending_up', change: `${flaggedCount} high severity`, positive: flaggedCount === 0 },
+    { label: 'Transactions', value: String(anomalies.length), icon: 'receipt_long', change: `${flaggedCount} flagged`, positive: flaggedCount === 0 },
+    { label: 'Categories', value: String(spendingData.length), icon: 'savings', change: 'Active categories', positive: true },
+  ]
+
   return (
     <div className="min-h-screen ml-[72px]">
       <Header />
@@ -30,7 +31,6 @@ export default function Vault() {
           <p className="font-crimson text-sm text-[#504440] italic">Gringotts Bank Statement — Full Account Overview</p>
         </div>
 
-        {/* Vault Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="relative bg-[#1a1a2e] rounded-xl p-8 mb-6 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-[#735c00]/10 to-transparent" />
@@ -39,16 +39,15 @@ export default function Vault() {
             <div>
               <span className="font-mono text-[10px] text-[#d4af37] uppercase tracking-[0.3em] block mb-2">Gringotts Wizarding Bank</span>
               <h2 className="font-cinzel text-3xl text-[#d4af37] mb-2">Account Summary</h2>
-              <p className="font-crimson text-sm text-[#9ca3af]">Vault #713 — Harry J. Potter</p>
+              <p className="font-crimson text-sm text-[#9ca3af]">Your Financial Vault</p>
             </div>
             <div className="text-left md:text-right">
-              <span className="font-mono text-[10px] text-[#9ca3af] uppercase tracking-widest block mb-1">Current Balance</span>
-              <div className="font-cinzel text-4xl text-[#d4af37]">₹124,350</div>
+              <span className="font-mono text-[10px] text-[#9ca3af] uppercase tracking-widest block mb-1">Total Spent</span>
+              <div className="font-cinzel text-4xl text-[#d4af37]">₹{totalBalance.toLocaleString()}</div>
             </div>
           </div>
         </motion.div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {VAULT_STATS.map((stat, i) => (
             <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
@@ -61,34 +60,55 @@ export default function Vault() {
           ))}
         </div>
 
-        {/* Transactions Table */}
         <div className="bg-[#faf3e6] rounded-xl shadow-md overflow-hidden">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#735c00] to-[#735c00]/30" />
           <div className="grid grid-cols-[1fr_2fr_1fr_1fr_80px] gap-4 px-6 py-3 border-b border-[#735c00]/20">
-            {['Date', 'Merchant', 'Category', 'Amount', ''].map((h) => (
-              <span key={h} className="font-mono text-[10px] text-[#504440] uppercase tracking-wider">{h}</span>
+            {['Category', 'Total Spent', '', '', ''].map((h, i) => (
+              <span key={i} className="font-mono text-[10px] text-[#504440] uppercase tracking-wider">{h}</span>
             ))}
           </div>
-          {TRANSACTIONS.map((txn, i) => (
-            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-              className={`grid grid-cols-[1fr_2fr_1fr_1fr_80px] gap-4 px-6 py-4 border-b border-[#735c00]/10 transition-colors ${
-                txn.anomaly ? 'bg-[#dc2626]/5 hover:bg-[#dc2626]/10' : 'hover:bg-[#f4e0bb]/30'
-              }`}>
-              <span className="font-mono text-xs text-[#504440]">{txn.date}</span>
-              <span className="font-crimson text-sm text-[#2c1810] font-semibold flex items-center gap-2">
-                {txn.merchant}
-                {txn.anomaly && <span className="material-symbols-outlined text-[14px] text-[#dc2626]">warning</span>}
-              </span>
-              <span className="font-crimson text-xs text-[#504440]">{txn.category}</span>
-              <span className={`font-mono text-xs ${txn.anomaly ? 'text-[#dc2626] font-semibold' : 'text-[#2c1810]'}`}>
-                ₹{txn.amount.toLocaleString()}
-              </span>
-              <button className="text-[#735c00] hover:text-[#2c1810] transition-colors">
-                <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-              </button>
-            </motion.div>
-          ))}
+          {spendingData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <span className="material-symbols-outlined text-[32px] text-[#735c00]/30">account_balance</span>
+              <p className="font-crimson text-sm text-[#504440]">No transactions yet. Upload a ledger to begin.</p>
+            </div>
+          ) : (
+            spendingData.map((item, i) => (
+              <motion.div key={item.category} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                className="grid grid-cols-[1fr_2fr_1fr_1fr_80px] gap-4 px-6 py-4 border-b border-[#735c00]/10 hover:bg-[#f4e0bb]/30 transition-colors">
+                <span className="font-crimson text-sm text-[#2c1810] font-semibold">{item.category}</span>
+                <span className="font-mono text-xs text-[#2c1810]">₹{item.total.toLocaleString()}</span>
+                <span className="font-crimson text-xs text-[#504440]">{((item.total / totalBalance) * 100).toFixed(1)}%</span>
+                <span></span>
+                <span></span>
+              </motion.div>
+            ))
+          )}
         </div>
+
+        {anomalies.length > 0 && (
+          <div className="mt-8 bg-[#faf3e6] rounded-xl shadow-md overflow-hidden">
+            <div className="px-6 py-3 border-b border-[#735c00]/20">
+              <h3 className="font-cinzel text-sm text-[#2c1810] uppercase tracking-widest">Recent Anomalies</h3>
+            </div>
+            {anomalies.slice(0, 5).map((a, i) => (
+              <motion.div key={a.anomaly_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                className="grid grid-cols-[1fr_2fr_1fr_1fr_80px] gap-4 px-6 py-4 border-b border-[#735c00]/10 hover:bg-[#dc2626]/5 cursor-pointer transition-colors"
+                onClick={() => navigate(`/anomaly/${a.anomaly_id}`)}>
+                <span className="font-mono text-xs text-[#504440]">{a.category}</span>
+                <span className="font-crimson text-sm text-[#2c1810] font-semibold flex items-center gap-2">
+                  {a.merchant}
+                  <span className="material-symbols-outlined text-[14px] text-[#dc2626]">warning</span>
+                </span>
+                <SeverityBadge severity={a.severity} />
+                <span className="font-mono text-xs text-[#dc2626]">₹{a.amount.toLocaleString()}</span>
+                <button className="text-[#735c00] hover:text-[#2c1810] transition-colors">
+                  <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        )}
       </main>
       <Footer />
     </div>

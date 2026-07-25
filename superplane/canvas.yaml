@@ -1,0 +1,148 @@
+name: Marauders Ledger Pipeline
+description: Orchestration canvas for The Marauder's Ledger anomaly detection pipeline
+
+nodes:
+  csv_upload:
+    type: input
+    label: CSV Upload
+    description: User uploads CSV bank statement
+    outputs: [raw_transactions]
+
+  validate_csv:
+    type: process
+    label: Validate CSV
+    description: Check required columns (amount, category, merchant, hour, day)
+    inputs: [raw_transactions]
+    outputs: [validated_transactions]
+    on_failure: reject
+
+  feature_engineering:
+    type: process
+    label: Feature Engineering
+    description: Extract features for ML models (amount, temporal, categorical)
+    inputs: [validated_transactions]
+    outputs: [feature_vectors]
+
+  ml_ensemble:
+    type: process
+    label: ML Ensemble Detection
+    description: Run 7-model ensemble (RF, GB, XGB, LGBM, Isolation Forest, LOF, OCSVM)
+    inputs: [feature_vectors]
+    outputs: [anomaly_scores]
+
+  rule_engine:
+    type: process
+    label: Rule Engine
+    description: Apply business rules (amount spike, unusual hour, new merchant, rolling avg)
+    inputs: [validated_transactions]
+    outputs: [rule_scores]
+
+  score_fusion:
+    type: process
+    label: Score Fusion
+    description: Combine ML and rule scores into final mischief score
+    inputs: [anomaly_scores, rule_scores]
+    outputs: [final_anomalies]
+
+  severity_classification:
+    type: process
+    label: Severity Classification
+    description: Classify anomalies as high (Dementor), medium (Boggart), low (Peeves)
+    inputs: [final_anomalies]
+    outputs: [classified_anomalies]
+
+  store_anomalies:
+    type: output
+    label: Store in SQLite
+    description: Persist anomalies to database
+    inputs: [classified_anomalies]
+
+  narrative_generation:
+    type: process
+    label: Gemini AI Narration
+    description: Generate narrative explanation via Gemini AI
+    inputs: [classified_anomalies]
+    outputs: [narratives]
+
+  tts_generation:
+    type: process
+    label: ElevenLabs TTS
+    description: Convert narratives to audio via ElevenLabs
+    inputs: [narratives]
+    outputs: [audio_files]
+
+  store_narratives:
+    type: output
+    label: Store Narratives
+    description: Persist narratives and audio to database
+    inputs: [narratives, audio_files]
+
+  dashboard_update:
+    type: output
+    label: Dashboard Update
+    description: Push real-time updates to frontend
+    inputs: [classified_anomalies, narratives]
+
+edges:
+  - from: csv_upload
+    to: validate_csv
+
+  - from: validate_csv
+    to: feature_engineering
+
+  - from: validate_csv
+    to: rule_engine
+
+  - from: feature_engineering
+    to: ml_ensemble
+
+  - from: ml_ensemble
+    to: score_fusion
+
+  - from: rule_engine
+    to: score_fusion
+
+  - from: score_fusion
+    to: severity_classification
+
+  - from: severity_classification
+    to: store_anomalies
+
+  - from: severity_classification
+    to: narrative_generation
+
+  - from: narrative_generation
+    to: tts_generation
+
+  - from: narrative_generation
+    to: store_narratives
+
+  - from: tts_generation
+    to: store_narratives
+
+  - from: severity_classification
+    to: dashboard_update
+
+  - from: narratives
+    to: dashboard_update
+
+config:
+  version: "1.0"
+  pipeline:
+    max_retries: 3
+    timeout_seconds: 300
+    parallel: true
+  ml:
+    model_path: models/
+    ensemble_size: 7
+    anomaly_threshold: 0.5
+  ai:
+    provider: gemini
+    model: gemini-2.0-flash
+    fallback: template
+  tts:
+    provider: elevenlabs
+    fallback: silent
+  storage:
+    type: sqlite
+    path: marauders.db

@@ -20,8 +20,8 @@ const FALLBACK_CHART_DATA = [
 export default function Dashboard() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
-  const { data: anomalies = [], isLoading } = useAnomalies('default')
-  const { data: spendingData } = useSpendingByDay('default')
+  const { data: anomalies = [], isLoading } = useAnomalies()
+  const { data: spendingData } = useSpendingByDay()
 
   const chartData = spendingData && spendingData.length > 0
     ? spendingData.map((d) => ({ day: `Day ${d.day}`, amount: d.amount }))
@@ -41,7 +41,6 @@ export default function Dashboard() {
     <div className="min-h-screen ml-[72px]">
       <Header />
       <main className="w-full pt-16 px-4 lg:px-10 max-w-[1400px] mx-auto">
-        {/* Stats Bar */}
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
           className="flex flex-wrap items-center gap-4 py-4 mb-4">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#faf3e6] rounded-lg shadow-sm">
@@ -73,12 +72,10 @@ export default function Dashboard() {
         </motion.div>
 
         <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-6">
-          {/* Map */}
           <div className="flex-grow lg:w-3/5 h-full relative rounded-xl overflow-hidden shadow-xl bg-[#faf3e6] parchment-edge">
             <MaraudersMap anomalies={filtered} onSelectAnomaly={(id) => navigate(`/anomaly/${id}`)} />
           </div>
 
-          {/* Sidebar */}
           <div className="flex-grow lg:w-2/5 h-full flex flex-col bg-[#fff8f2] rounded-xl shadow-md overflow-hidden relative">
             <div className="absolute left-6 top-0 bottom-0 w-px bg-[#dc2626]/30 z-0 pointer-events-none" />
             <div className="p-6 relative z-10 flex-shrink-0 bg-[#fff8f2]/95 backdrop-blur-sm shadow-sm border-b border-[#d3c3be]/30">

@@ -2,9 +2,9 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AnimatePresence } from 'framer-motion'
-import { AppProvider } from './context/AppContext'
 import { ToastProvider } from './context/ToastContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { AppProvider } from './context/AppContext'
 import SidebarNav from './components/SidebarNav'
 import CommandPalette from './components/CommandPalette'
 import ScrollToTop from './components/ScrollToTop'
@@ -86,9 +86,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
-        <AppProvider>
-          <ToastProvider>
-            <AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <AppProvider>
               <SidebarNav />
               <Onboarding />
               <CommandPalette />
@@ -96,9 +96,9 @@ export default function App() {
               <DarkModeToggle />
               <KeyboardShortcuts />
               <AnimatedRoutes />
-            </AuthProvider>
-          </ToastProvider>
-        </AppProvider>
+            </AppProvider>
+          </AuthProvider>
+        </ToastProvider>
       </QueryClientProvider>
     </BrowserRouter>
   )

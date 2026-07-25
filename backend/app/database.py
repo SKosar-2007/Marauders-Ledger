@@ -1,135 +1,153 @@
 """
-In-memory database fallback for local development.
-Replaces VectorAI when it's not available.
+Database router for The Marauder's Ledger.
+- Users/auth: always SQLite (relational data)
+- Transactions, anomalies, narratives: Actian VectorAI (primary), SQLite fallback
 """
+import json
+import os
+import sqlite3
 import uuid
 from typing import Optional
 
-_transactions: list[dict] = []
-_anomalies: list[dict] = []
-_narratives: list[dict] = []
-_batches: list[dict] = []
-_next_id = 1
+from app import vector_store
+
+AUTH_DB_PATH = os.getenv("DATABASE_PATH", "marauders.db")
+_auth_conn: Optional[sqlite3.Connection] = None
 
 
-def _gen_id() -> int:
-    global _next_id
-    n = _next_id
-    _next_id += 1
-    return n
-
-
-def _gen_uuid() -> str:
-    return uuid.uuid4().hex[:12]
+def _get_auth_conn() -> sqlite3.Connection:
+    global _auth_conn
+    if _auth_conn is None:
+        _auth_conn = sqlite3.connect(AUTH_DB_PATH, check_same_thread=False)
+        _auth_conn.row_factory = sqlite3.Row
+        _auth_conn.execute("PRAGMA journal_mode=WAL")
+        _auth_conn.execute("PRAGMA foreign_keys=ON")
+        _auth_conn.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS batches (
+                batch_id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                txn_count INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'processing',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id)
+            );
+        """)
+        _auth_conn.commit()
+    return _auth_conn
 
 
 def init_db():
-    print("InMemory DB: initialized (no VectorAI)")
+    _get_auth_conn()
+    vs_ok = vector_store.init_vector_store()
+    if vs_ok:
+        print("Database: Actian VectorAI PRIMARY — SQLite for auth only")
+    else:
+        print("Database: SQLite FALLBACK — VectorAI unavailable")
 
 
-def create_upload_batch(user_id: str, txn_count: int) -> str:
-    batch_id = _gen_uuid()
-    _batches.append({
-        "batch_id": batch_id,
-        "user_id": user_id,
-        "txn_count": txn_count,
-        "status": "processing",
-    })
+# ── User operations (always SQLite) ──
+
+def create_user(email: str, name: str, password_hash: str) -> int:
+    conn = _get_auth_conn()
+    cur = conn.execute(
+        "INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)",
+        (email, name, password_hash),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def get_user_by_email(email: str) -> Optional[dict]:
+    conn = _get_auth_conn()
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> Optional[dict]:
+    conn = _get_auth_conn()
+    row = conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+# ── Batch operations (SQLite — lightweight metadata) ──
+
+def create_upload_batch(user_id: int, txn_count: int) -> str:
+    batch_id = uuid.uuid4().hex[:12]
+    conn = _get_auth_conn()
+    conn.execute(
+        "INSERT INTO batches (batch_id, user_id, txn_count, status) VALUES (?, ?, ?, 'processing')",
+        (batch_id, user_id, txn_count),
+    )
+    conn.commit()
     return batch_id
 
 
 def update_batch_status(batch_id: str, status: str):
-    for b in _batches:
-        if b["batch_id"] == batch_id:
-            b["status"] = status
-            break
+    conn = _get_auth_conn()
+    conn.execute("UPDATE batches SET status = ? WHERE batch_id = ?", (status, batch_id))
+    conn.commit()
 
 
-def insert_transactions(txns: list[dict], user_id: str, batch_id: str) -> list[int]:
-    ids = []
-    for txn in txns:
-        pid = _gen_id()
-        txn_with_meta = {**txn, "txn_id": pid, "user_id": user_id, "batch_id": batch_id}
-        _transactions.append(txn_with_meta)
-        ids.append(pid)
-    return ids
+def get_batches_by_user(user_id: int) -> list[dict]:
+    conn = _get_auth_conn()
+    rows = conn.execute(
+        "SELECT * FROM batches WHERE user_id = ? ORDER BY created_at DESC", (user_id,)
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ── Data operations (VectorAI primary, SQLite fallback) ──
+
+def insert_transactions(txns: list[dict], user_id: int, batch_id: str) -> list[int]:
+    return vector_store.insert_transactions(txns, user_id, batch_id)
 
 
 def get_transactions_by_batch(batch_id: str) -> list[dict]:
-    return [t for t in _transactions if t.get("batch_id") == batch_id]
+    return vector_store.get_transactions_by_batch(batch_id)
 
 
-def insert_anomalies(anomalies: list[dict], user_id: str) -> list[int]:
-    ids = []
-    for a in anomalies:
-        pid = _gen_id()
-        a_with_meta = {**a, "anomaly_id": pid, "user_id": user_id}
-        _anomalies.append(a_with_meta)
-        ids.append(pid)
-    return ids
+def get_transactions_by_user(user_id: int) -> list[dict]:
+    return vector_store.get_transactions_by_user(user_id)
 
 
-def get_anomalies(user_id: Optional[str] = None, severity: Optional[str] = None) -> list[dict]:
-    results = [a for a in _anomalies if a.get("is_anomaly")]
-    if user_id:
-        results = [a for a in results if a.get("user_id") == user_id]
-    if severity:
-        results = [a for a in results if a.get("severity") == severity]
-    return results
+def insert_anomalies(anomalies: list[dict], user_id: int) -> list[int]:
+    return vector_store.insert_anomalies(anomalies, user_id)
+
+
+def get_anomalies(user_id: Optional[int] = None, severity: Optional[str] = None) -> list[dict]:
+    return vector_store.get_anomalies(user_id, severity)
 
 
 def get_anomaly_by_id(anomaly_id: int) -> Optional[dict]:
-    for a in _anomalies:
-        if a.get("anomaly_id") == anomaly_id:
-            return a
-    return None
-
-
-def insert_narrative(anomaly_id: int, text: str) -> int:
-    for n in _narratives:
-        if n.get("anomaly_id") == anomaly_id:
-            n["text"] = text
-            return n["narrative_id"]
-    pid = _gen_id()
-    _narratives.append({"narrative_id": pid, "anomaly_id": anomaly_id, "text": text})
-    return pid
-
-
-def get_narrative_by_anomaly_id(anomaly_id: int) -> Optional[dict]:
-    for n in _narratives:
-        if n.get("anomaly_id") == anomaly_id:
-            return n
-    return None
-
-
-def update_narrative_audio(narrative_id: int, audio_data: bytes):
-    for n in _narratives:
-        if n.get("narrative_id") == narrative_id:
-            n["audio_data"] = audio_data
-            break
+    return vector_store.get_anomaly_by_id(anomaly_id)
 
 
 def update_anomaly_status(anomaly_id: int, status: str) -> bool:
-    for a in _anomalies:
-        if a.get("anomaly_id") == anomaly_id:
-            a["status"] = status
-            return True
-    return False
+    return vector_store.update_anomaly_status(anomaly_id, status)
 
 
-def get_spending_by_category(user_id: str) -> list[dict]:
-    txns = [t for t in _transactions if t.get("user_id") == user_id]
-    cats: dict[str, float] = {}
-    for t in txns:
-        cat = t.get("category", "Unknown")
-        cats[cat] = cats.get(cat, 0) + t.get("amount", 0)
-    return [{"category": k, "total": v} for k, v in cats.items()]
+def insert_narrative(anomaly_id: int, text: str) -> int:
+    return vector_store.insert_narrative(anomaly_id, text)
 
 
-def get_spending_by_day(user_id: str) -> list[dict]:
-    txns = [t for t in _transactions if t.get("user_id") == user_id]
-    days: dict[str, float] = {}
-    for t in txns:
-        day = str(t.get("day", 0))
-        days[day] = days.get(day, 0) + t.get("amount", 0)
-    return [{"day": k, "amount": v} for k, v in sorted(days.items())]
+def get_narrative_by_anomaly_id(anomaly_id: int) -> Optional[dict]:
+    return vector_store.get_narrative_by_anomaly_id(anomaly_id)
+
+
+def update_narrative_audio(narrative_id: int, audio_data: bytes):
+    vector_store.update_narrative_audio(narrative_id, audio_data)
+
+
+def get_spending_by_category(user_id: int) -> list[dict]:
+    return vector_store.get_spending_by_category(user_id)
+
+
+def get_spending_by_day(user_id: int) -> list[dict]:
+    return vector_store.get_spending_by_day(user_id)

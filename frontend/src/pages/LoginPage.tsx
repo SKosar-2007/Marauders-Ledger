@@ -35,7 +35,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
-      {/* Background decorations */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-20 left-20 w-64 h-64 bg-[#735c00]/5 rounded-full blur-3xl" />
         <div className="absolute bottom-20 right-20 w-48 h-48 bg-[#d4af37]/5 rounded-full blur-3xl" />
@@ -43,7 +42,6 @@ export default function LoginPage() {
 
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md relative z-10">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#735c00] flex items-center justify-center shadow-lg">
             <span className="text-white text-2xl font-cinzel">M</span>
@@ -52,9 +50,7 @@ export default function LoginPage() {
           <p className="font-crimson text-sm text-[#504440] italic mt-1">I solemnly swear that I am up to no good.</p>
         </div>
 
-        {/* Card */}
         <div className="bg-[#faf3e6] rounded-xl p-8 shadow-xl border border-[#735c00]/10">
-          {/* Mode toggle */}
           <div className="flex bg-[#f4e0bb] rounded-lg p-1 mb-6">
             {(['login', 'signup'] as const).map((m) => (
               <button key={m} onClick={() => { setMode(m); setError('') }}
@@ -67,11 +63,6 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'login' && (
-              <p className="font-crimson text-xs text-[#504440] text-center bg-[#f4e0bb]/50 rounded-lg px-3 py-2">
-                Test: <span className="font-mono text-[#735c00]">marauder@hogwarts.edu</span> / <span className="font-mono text-[#735c00]">lumos123</span>
-              </p>
-            )}
             <AnimatePresence mode="wait">
               {mode === 'signup' && (
                 <motion.div key="name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}

@@ -1,18 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { getSpendingByDay, getSpendingByCategory } from '../services/api'
 
-export function useSpendingByDay(userId: string) {
+export function useSpendingByDay() {
   return useQuery({
-    queryKey: ['spending-day', userId],
-    queryFn: () => getSpendingByDay(userId),
-    enabled: !!userId,
+    queryKey: ['spending-day'],
+    queryFn: () => getSpendingByDay(),
   })
 }
 
-export function useSpendingByCategory(userId: string) {
+export function useSpendingByCategory() {
   return useQuery({
-    queryKey: ['spending-category', userId],
-    queryFn: () => getSpendingByCategory(userId),
-    enabled: !!userId,
+    queryKey: ['spending-category'],
+    queryFn: () => getSpendingByCategory(),
   })
 }

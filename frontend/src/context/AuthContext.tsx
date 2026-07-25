@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { loginUser, registerUser, getMe } from '../services/api'
 
 interface User {
   id: string
@@ -16,40 +17,33 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null)
 
-const USERS_KEY = 'marauders_users'
 const SESSION_KEY = 'marauders_session'
-
-function getStoredUsers(): Record<string, { password: string; name: string }> {
-  try {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}')
-    // Seed default test account if none exists
-    if (Object.keys(users).length === 0) {
-      users['marauder@hogwarts.edu'] = { password: 'lumos123', name: 'Marauder' }
-      localStorage.setItem(USERS_KEY, JSON.stringify(users))
-    }
-    return users
-  } catch {
-    const defaults: Record<string, { password: string; name: string }> = {
-      'marauder@hogwarts.edu': { password: 'lumos123', name: 'Marauder' },
-    }
-    localStorage.setItem(USERS_KEY, JSON.stringify(defaults))
-    return defaults
-  }
-}
-
-function storeUser(email: string, password: string, name: string) {
-  const users = getStoredUsers()
-  users[email] = { password, name }
-  localStorage.setItem(USERS_KEY, JSON.stringify(users))
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     try {
       const session = localStorage.getItem(SESSION_KEY)
       return session ? JSON.parse(session) : null
-    } catch { return null }
+    } catch {
+      return null
+    }
   })
+
+  useEffect(() => {
+    const token = localStorage.getItem('marauders_token')
+    if (token && !user) {
+      getMe()
+        .then((me) => {
+          const u = { id: String(me.user_id), name: me.name, email: me.email }
+          setUser(u)
+          localStorage.setItem(SESSION_KEY, JSON.stringify(u))
+        })
+        .catch(() => {
+          localStorage.removeItem('marauders_token')
+          localStorage.removeItem(SESSION_KEY)
+        })
+    }
+  }, [])
 
   useEffect(() => {
     if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user))
@@ -57,23 +51,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const login = useCallback(async (email: string, password: string) => {
-    const users = getStoredUsers()
-    if (users[email] && users[email].password === password) {
-      setUser({ id: email, name: users[email].name, email })
+    try {
+      const res = await loginUser(email, password)
+      localStorage.setItem('marauders_token', res.access_token)
+      setUser({ id: String(res.user.user_id), name: res.user.name, email: res.user.email })
       return true
+    } catch {
+      return false
     }
-    return false
   }, [])
 
   const signup = useCallback(async (name: string, email: string, password: string) => {
-    const users = getStoredUsers()
-    if (users[email]) return false
-    storeUser(email, password, name)
-    setUser({ id: email, name, email })
-    return true
+    try {
+      const res = await registerUser(name, email, password)
+      localStorage.setItem('marauders_token', res.access_token)
+      setUser({ id: String(res.user.user_id), name: res.user.name, email: res.user.email })
+      return true
+    } catch {
+      return false
+    }
   }, [])
 
-  const logout = useCallback(() => setUser(null), [])
+  const logout = useCallback(() => {
+    localStorage.removeItem('marauders_token')
+    localStorage.removeItem(SESSION_KEY)
+    setUser(null)
+  }, [])
 
   return (
     <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user }}>

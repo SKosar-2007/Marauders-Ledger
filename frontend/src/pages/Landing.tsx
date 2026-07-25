@@ -6,12 +6,14 @@ import { useUploadAndAnalyze } from '../hooks/useAnomalies'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import UploadZone from '../components/UploadZone'
+import { useAnomalies } from '../hooks/useAnomalies'
 
 export default function Landing() {
   const navigate = useNavigate()
   const { setBatchId } = useAppContext()
   const { showToast } = useToast()
   const uploadMutation = useUploadAndAnalyze()
+  const { data: anomalies = [] } = useAnomalies()
 
   const handleFileUpload = async (file: File) => {
     try {
@@ -23,6 +25,22 @@ export default function Landing() {
       showToast('The spell failed. Please check your CSV format.', 'error')
     }
   }
+
+  const recentInvestigations = anomalies.slice(0, 3).map((a) => ({
+    date: a.detected_at ? new Date(a.detected_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase() : 'JUL 25, 2026',
+    title: `${a.merchant} Anomaly`,
+    desc: `Transaction of ₹${a.amount.toFixed(0)} flagged as ${a.severity} severity in ${a.category}.`,
+    severity: a.severity,
+    id: a.anomaly_id,
+  }))
+
+  const fallbackInvestigations = [
+    { date: 'JUL 25, 2026', title: "Godric's Hollow Expenses", desc: 'Anomalous spike in protective charm material costs noted prior to incident.', severity: 'high', id: '' },
+    { date: 'JUL 24, 2026', title: "Zonko's Bulk Order", desc: 'Quarterly audit of dungbomb acquisitions for term commencement.', severity: 'medium', id: '' },
+    { date: 'JUL 23, 2026', title: 'Three Broomsticks Tab', desc: 'Outstanding butterbeer ledger reconciliation required.', severity: 'low', id: '' },
+  ]
+
+  const investigations = recentInvestigations.length > 0 ? recentInvestigations : fallbackInvestigations
 
   return (
     <div className="min-h-screen ml-[72px]">
@@ -63,7 +81,7 @@ export default function Landing() {
               <button onClick={() => navigate('/dashboard')}
                 className="inline-flex items-center gap-2 font-crimson text-sm text-[#735c00] hover:text-[#2c1810] transition-colors group">
                 <span className="material-symbols-outlined text-[18px] group-hover:rotate-180 transition-transform duration-700">history_edu</span>
-                <span className="border-b border-[#735c00]/30 group-hover:border-[#2c1810]/50 pb-0.5">Load Sample Cursed Ledger</span>
+                <span className="border-b border-[#735c00]/30 group-hover:border-[#2c1810]/50 pb-0.5">View Dashboard</span>
               </button>
             </div>
           </motion.div>
@@ -76,13 +94,10 @@ export default function Landing() {
               <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent via-[#735c00]/30 to-[#735c00]/30" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                { date: 'JUL 25, 2026', title: "Godric's Hollow Expenses", desc: 'Anomalous spike in protective charm material costs noted prior to incident.', severity: 'high' },
-                { date: 'JUL 24, 2026', title: "Zonko's Bulk Order", desc: 'Quarterly audit of dungbomb acquisitions for term commencement.', severity: 'medium' },
-                { date: 'JUL 23, 2026', title: 'Three Broomsticks Tab', desc: 'Outstanding butterbeer ledger reconciliation required by Madam Rosmerta.', severity: 'low' },
-              ].map((item, i) => (
+              {investigations.map((item, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 + i * 0.1 }}
-                  className="group relative bg-[#faf3e6] p-8 parchment-edge shadow-[0_8px_30px_rgba(44,24,16,0.05)] hover:-translate-y-2 transition-all duration-500">
+                  className="group relative bg-[#faf3e6] p-8 parchment-edge shadow-[0_8px_30px_rgba(44,24,16,0.05)] hover:-translate-y-2 transition-all duration-500 cursor-pointer"
+                  onClick={() => item.id && navigate(`/anomaly/${item.id}`)}>
                   <div className="absolute top-0 left-6 w-[2px] h-full bg-[#dc2626]/20 mix-blend-multiply" />
                   <div className="absolute inset-0 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.2)] pointer-events-none" />
                   <div className="relative z-10 pl-4 flex flex-col h-full gap-4">

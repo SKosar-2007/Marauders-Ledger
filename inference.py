@@ -23,6 +23,16 @@ try:
 except ImportError:
     pass
 
+try:
+    from catboost import CatBoostClassifier
+except ImportError:
+    pass
+
+try:
+    from sklearn.ensemble import ExtraTreesClassifier
+except ImportError:
+    pass
+
 # =============================================================================
 # LOAD MODELS (call once at server startup)
 # =============================================================================
@@ -40,7 +50,7 @@ def load_models(model_dir: str = "models"):
     global MODELS, SCALER, FEATURES, METADATA
     global UNSUP_MODELS, FIT_STATS, TRAIN_STATS, _LOADED
 
-    for name in ["rf", "gb", "xgb", "lgbm"]:
+    for name in ["rf", "gb", "xgb", "lgbm", "catboost", "et"]:
         path = f"{model_dir}/{name}_model.pkl"
         if os.path.exists(path):
             MODELS[name] = joblib.load(path)
@@ -176,6 +186,42 @@ def engineer_features(df: pd.DataFrame, fit_stats: dict | None = None) -> pd.Dat
     df["txn_velocity_1h"] = 1
     df["amount_to_global_mean_ratio"] = df["amount"] / fit_stats["global_mean"] if fit_stats else df["amount"] / df["amount"].mean()
     df["category_merchant_diversity"] = df.groupby("category")["merchant"].transform("nunique")
+
+    # v5 new features
+    global_std = fit_stats["global_std"] if fit_stats else df["amount"].std()
+    df["amount_log_zscore"] = (df["amount_log"] - df["amount_log"].mean()) / max(df["amount_log"].std(), 0.1)
+    df["merchant_amt_ratio"] = df["amount"] / df.groupby("merchant")["amount"].transform("mean").clip(lower=1)
+    df["category_entropy"] = -df.groupby("category")["merchant"].transform(
+        lambda x: x.value_counts(normalize=True).apply(lambda p: p * np.log2(p + 1e-10)).sum()
+    )
+    df["hour_category_interaction"] = df["hour"] * df["category_mean_amount"]
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        df["txn_recency_score"] = 1.0 / (1.0 + df["days_since_last_txn"])
+    else:
+        df["txn_recency_score"] = 0.5
+    df["amount_binned"] = pd.cut(df["amount"], bins=[0, 50, 100, 200, 500, 1000, 5000, 100000],
+                                  labels=[0, 1, 2, 3, 4, 5, 6]).astype(float).fillna(3)
+    df["is_high_risk_hour"] = ((df["hour"] <= 5) | (df["hour"] >= 23)).astype(int)
+    df["merchant_category_risk"] = df["merchant_freq"] * df["is_unusual_hour"]
+    df["rolling_mean_ratio"] = df["amount"] / df["rolling_7d_mean"].clip(lower=1)
+    df["rolling_std_ratio"] = (df["amount"] - df["rolling_7d_mean"]) / df["rolling_7d_std"].clip(lower=1)
+    df["amount_percentile_category"] = df.groupby("category")["amount"].rank(pct=True)
+    df["is_new_merchant_risk"] = ((df["merchant_freq"] <= 2) & (df["amount_zscore"] > 1.5)).astype(int)
+    df["compound_risk_score"] = (
+        df["is_unusual_hour"] * 0.3 +
+        (df["merchant_freq"] <= 2).astype(int) * 0.3 +
+        (df["amount_zscore"] > 2).astype(int) * 0.4
+    )
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        df["time_since_midnight"] = df["timestamp"].dt.hour * 60 + df["timestamp"].dt.minute
+    else:
+        df["time_since_midnight"] = df["hour"] * 60
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        day_of_month = df["timestamp"].dt.day
+        df["is_payday_window"] = ((day_of_month >= 25) | (day_of_month <= 3)).astype(int)
+    else:
+        df["is_payday_window"] = 0
+    df["amount_deviation_squared"] = df["amount_deviation_from_rolling"] ** 2
 
     # Clip and clean
     df["amount_zscore"] = df["amount_zscore"].clip(-5, 5)

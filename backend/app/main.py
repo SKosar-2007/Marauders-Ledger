@@ -6,17 +6,27 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 import pandas as pd
-from fastapi import FastAPI, File, HTTPException, Response, UploadFile
+from fastapi import FastAPI, File, HTTPException, Response, UploadFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth import (
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password,
+)
 from app.database import (
     create_upload_batch,
+    create_user,
     get_anomalies,
     get_anomaly_by_id,
+    get_batches_by_user,
     get_narrative_by_anomaly_id,
     get_spending_by_category,
     get_spending_by_day,
     get_transactions_by_batch,
+    get_transactions_by_user,
+    get_user_by_email,
     init_db,
     insert_anomalies,
     insert_narrative,
@@ -27,7 +37,16 @@ from app.database import (
 )
 from app.gemini import generate_narrative
 from app.inference import detect_anomalies, load_models
-from app.schemas import AnomalyResult, BatchResponse, HealthResponse, NarrativeResponse
+from app.schemas import (
+    AnomalyResult,
+    BatchResponse,
+    HealthResponse,
+    NarrativeResponse,
+    TokenResponse,
+    UserLogin,
+    UserRegister,
+    UserResponse,
+)
 from app.tts import generate_audio
 
 
@@ -41,7 +60,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="The Marauder's Ledger",
     description="Financial anomaly detection API with AI narration",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -56,13 +75,54 @@ app.add_middleware(
 REQUIRED_COLUMNS = {"amount", "category", "merchant", "hour", "day"}
 
 
+# ── Health ──
+
 @app.get("/api/health", response_model=HealthResponse)
 async def health_check():
-    return HealthResponse(status="ok", version="0.1.0")
+    return HealthResponse(status="ok", version="0.2.0")
 
+
+# ── Auth ──
+
+@app.post("/api/auth/register", response_model=TokenResponse)
+async def register(body: UserRegister):
+    if get_user_by_email(body.email):
+        raise HTTPException(status_code=400, detail="Email already registered")
+    uid = await asyncio.to_thread(create_user, body.email, body.name, hash_password(body.password))
+    token = create_access_token({"sub": str(uid), "email": body.email, "name": body.name})
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse(user_id=uid, name=body.name, email=body.email),
+    )
+
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+async def login(body: UserLogin):
+    user = await asyncio.to_thread(get_user_by_email, body.email)
+    if not user or not verify_password(body.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    token = create_access_token({"sub": str(user["user_id"]), "email": user["email"], "name": user["name"]})
+    return TokenResponse(
+        access_token=token,
+        user=UserResponse(user_id=user["user_id"], name=user["name"], email=user["email"]),
+    )
+
+
+@app.get("/api/auth/me", response_model=UserResponse)
+async def get_me(current_user: dict = Depends(get_current_user)):
+    return UserResponse(
+        user_id=int(current_user["sub"]),
+        name=current_user["name"],
+        email=current_user["email"],
+    )
+
+
+# ── Upload & Analyze ──
 
 @app.post("/api/upload", response_model=BatchResponse)
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
+
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted")
 
@@ -80,8 +140,6 @@ async def upload_csv(file: UploadFile = File(...)):
         )
 
     txns = df.to_dict(orient="records")
-    user_id = "default"
-
     batch_id = await asyncio.to_thread(create_upload_batch, user_id, len(txns))
     txn_ids = await asyncio.to_thread(insert_transactions, txns, user_id, batch_id)
 
@@ -89,7 +147,8 @@ async def upload_csv(file: UploadFile = File(...)):
 
 
 @app.post("/api/analyze")
-async def analyze_batch(batch_id: str):
+async def analyze_batch(batch_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
     txns = await asyncio.to_thread(get_transactions_by_batch, batch_id)
     if not txns:
         raise HTTPException(status_code=404, detail="Batch not found")
@@ -98,7 +157,7 @@ async def analyze_batch(batch_id: str):
     anomalies = [r for r in results if r["is_anomaly"]]
 
     if anomalies:
-        await asyncio.to_thread(insert_anomalies, anomalies, "default")
+        await asyncio.to_thread(insert_anomalies, anomalies, user_id)
 
     await asyncio.to_thread(update_batch_status, batch_id, "completed")
 
@@ -108,6 +167,8 @@ async def analyze_batch(batch_id: str):
         "status": "completed",
     }
 
+
+# ── Anomalies ──
 
 def _row_to_anomaly(row: dict) -> dict:
     return {
@@ -130,21 +191,29 @@ def _row_to_anomaly(row: dict) -> dict:
 
 
 @app.get("/api/anomalies", response_model=list[AnomalyResult])
-async def list_anomalies(user_id: Optional[str] = None, severity: Optional[str] = None):
+async def list_anomalies(
+    severity: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = int(current_user["sub"])
     rows = await asyncio.to_thread(get_anomalies, user_id, severity)
     return [_row_to_anomaly(r) for r in rows]
 
 
 @app.get("/api/anomalies/{anomaly_id}", response_model=AnomalyResult)
-async def get_anomaly(anomaly_id: int):
+async def get_anomaly(anomaly_id: int, current_user: dict = Depends(get_current_user)):
     row = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
     if not row:
         raise HTTPException(status_code=404, detail="Anomaly not found")
+    if row["user_id"] != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Access denied")
     return _row_to_anomaly(row)
 
 
+# ── Narratives ──
+
 @app.get("/api/narratives/{anomaly_id}", response_model=NarrativeResponse)
-async def get_narrative(anomaly_id: int):
+async def get_narrative(anomaly_id: int, current_user: dict = Depends(get_current_user)):
     existing = await asyncio.to_thread(get_narrative_by_anomaly_id, anomaly_id)
     if existing:
         return NarrativeResponse(
@@ -157,6 +226,8 @@ async def get_narrative(anomaly_id: int):
     anomaly = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
     if not anomaly:
         raise HTTPException(status_code=404, detail="Anomaly not found")
+    if anomaly["user_id"] != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     text = await asyncio.to_thread(generate_narrative, anomaly)
     nid = await asyncio.to_thread(insert_narrative, anomaly_id, text)
@@ -169,13 +240,16 @@ async def get_narrative(anomaly_id: int):
 
 
 @app.get("/api/narratives/{anomaly_id}/audio")
-async def get_narrative_audio(anomaly_id: int):
+async def get_narrative_audio(anomaly_id: int, current_user: dict = Depends(get_current_user)):
+    anomaly = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
+    if not anomaly:
+        raise HTTPException(status_code=404, detail="Anomaly not found")
+    if anomaly["user_id"] != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Access denied")
+
     narrative = await asyncio.to_thread(get_narrative_by_anomaly_id, anomaly_id)
 
     if not narrative:
-        anomaly = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
-        if not anomaly:
-            raise HTTPException(status_code=404, detail="Anomaly not found")
         text = await asyncio.to_thread(generate_narrative, anomaly)
         nid = await asyncio.to_thread(insert_narrative, anomaly_id, text)
         narrative = {"narrative_id": nid, "text": text, "audio_data": None}
@@ -194,20 +268,43 @@ async def get_narrative_audio(anomaly_id: int):
 
 
 @app.post("/api/anomalies/{anomaly_id}/status")
-async def set_anomaly_status(anomaly_id: int, status: str):
+async def set_anomaly_status(anomaly_id: int, status: str, current_user: dict = Depends(get_current_user)):
     if status not in ("valid", "mischief", "pending"):
         raise HTTPException(status_code=400, detail="Status must be valid, mischief, or pending")
-    ok = await asyncio.to_thread(update_anomaly_status, anomaly_id, status)
-    if not ok:
+    anomaly = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
+    if not anomaly:
         raise HTTPException(status_code=404, detail="Anomaly not found")
+    if anomaly["user_id"] != int(current_user["sub"]):
+        raise HTTPException(status_code=403, detail="Access denied")
+    await asyncio.to_thread(update_anomaly_status, anomaly_id, status)
     return {"anomaly_id": anomaly_id, "status": status}
 
 
+# ── Spending ──
+
 @app.get("/api/spending/category")
-async def spending_by_category(user_id: str = "default"):
+async def spending_by_category(current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
     return await asyncio.to_thread(get_spending_by_category, user_id)
 
 
 @app.get("/api/spending/daily")
-async def spending_by_day(user_id: str = "default"):
+async def spending_by_day(current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
     return await asyncio.to_thread(get_spending_by_day, user_id)
+
+
+# ── Batches ──
+
+@app.get("/api/batches")
+async def list_batches(current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
+    return await asyncio.to_thread(get_batches_by_user, user_id)
+
+
+# ── Transactions ──
+
+@app.get("/api/transactions")
+async def list_transactions(current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
+    return await asyncio.to_thread(get_transactions_by_user, user_id)

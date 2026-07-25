@@ -8,7 +8,7 @@ import { useAnomalies } from '../hooks/useAnomalies'
 
 export default function MischiefList() {
   const navigate = useNavigate()
-  const { data: anomalies = [], isLoading } = useAnomalies('default')
+  const { data: anomalies = [], isLoading } = useAnomalies()
   const [search, setSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [page, setPage] = useState(0)
@@ -39,7 +39,6 @@ export default function MischiefList() {
           <p className="font-crimson text-sm text-[#504440] italic">A complete archive of detected mischief.</p>
         </div>
 
-        {/* Search & Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="flex-1 relative">
             <span className="material-symbols-outlined absolute left-0 top-1/2 -translate-y-1/2 text-[#735c00] text-[20px]">search</span>
@@ -63,7 +62,6 @@ export default function MischiefList() {
           </select>
         </div>
 
-        {/* Table */}
         <div className="bg-[#faf3e6] rounded-xl shadow-md overflow-hidden relative">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[#dc2626] to-[#dc2626]/30" />
 
@@ -93,7 +91,7 @@ export default function MischiefList() {
                   onClick={() => navigate(`/anomaly/${a.anomaly_id}`)}
                 >
                   <span className="font-mono text-xs text-[#504440]">
-                    {a.detected_at ? new Date(a.detected_at).toLocaleDateString() : 'Jul 25, 2026'}
+                    {a.detected_at ? new Date(a.detected_at).toLocaleDateString() : '—'}
                   </span>
                   <span className="font-crimson text-sm text-[#2c1810] font-semibold">{a.merchant}</span>
                   <SeverityBadge severity={a.severity} />
@@ -111,7 +109,6 @@ export default function MischiefList() {
           )}
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-6">
             <span className="font-mono text-xs text-[#504440]">

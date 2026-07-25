@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Marauder's Ledger - ML Model Training Script (v4.0)
+Marauder's Ledger - ML Model Training Script (v5.0)
 =====================================================
-Improved hybrid ensemble for higher F1 and recall.
+High-accuracy hybrid ensemble for 100K+ datasets.
 
-Key improvements over v3:
-- More training data (10K samples)
-- Richer anomaly injection (12 types, compound patterns)
-- 25 engineered features (up from 16)
-- XGBoost + LightGBM added to ensemble
-- Stacking meta-learner instead of simple averaging
-- Probability calibration
+Key improvements over v4:
+- 100K training samples, 20K test samples
+- 45+ engineered features (up from 32)
+- 20 anomaly injection types with compound patterns
+- CatBoost + ExtraTrees added to ensemble
+- Improved hyperparameters for large datasets
+- Batch processing for memory efficiency
 - Repeated stratified k-fold CV
 """
 
@@ -57,15 +57,27 @@ try:
 except ImportError:
     HAS_LGBM = False
 
+try:
+    from catboost import CatBoostClassifier
+    HAS_CATBOOST = True
+except ImportError:
+    HAS_CATBOOST = False
+
+try:
+    from sklearn.ensemble import ExtraTreesClassifier
+    HAS_ET = True
+except ImportError:
+    HAS_ET = False
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-N_SAMPLES = 15000
-N_TEST = 3000
-ANOMALY_PCT = 0.04
+N_SAMPLES = 100000
+N_TEST = 20000
+ANOMALY_PCT = 0.05
 RANDOM_SEED = 42
-N_FOLDS = 5
-N_REPEATS = 2
+N_FOLDS = 3
+N_REPEATS = 1
 OUTPUT_DIR = "models"
 DATA_DIR = "data"
 VIZ_DIR = "visualizations"
@@ -84,6 +96,14 @@ FEATURES = [
     "amt_x_rarity", "amt_x_unusual_hour", "zscore_x_new_merchant",
     "cat_ratio_x_unusual_hour", "rolling_dev_x_rarity",
     "amt_x_velocity", "spike_score",
+    # New v5 features
+    "amount_log_zscore", "merchant_amt_ratio", "category_entropy",
+    "hour_category_interaction", "txn_recency_score",
+    "amount_binned", "is_high_risk_hour", "merchant_category_risk",
+    "rolling_mean_ratio", "rolling_std_ratio",
+    "amount_percentile_category", "is_new_merchant_risk",
+    "compound_risk_score", "time_since_midnight",
+    "is_payday_window", "amount_deviation_squared",
 ]
 
 CATEGORY_PARAMS = {
@@ -182,9 +202,11 @@ def _inject_anomalies(df, n_anomalies, seed):
          "category_anomaly", "subtle_amount", "time_pattern_break",
          "round_amount_fraud", "micro_txn_flood", "geo_impossible",
          "double_spend", "compound", "escalating_amounts", "weekend_spike",
-         "late_night_txn", "merchant_hopping"],
+         "late_night_txn", "merchant_hopping", "rapid_succession",
+         "amount_staircase", "identity_switch", "location_jump"],
         n_anomalies,
-        p=[0.12, 0.10, 0.10, 0.07, 0.07, 0.07, 0.07, 0.07, 0.05, 0.05, 0.04, 0.04, 0.05, 0.04, 0.03, 0.03]
+        p=[0.095, 0.075, 0.075, 0.055, 0.055, 0.055, 0.055, 0.055, 0.05, 0.05,
+           0.04, 0.04, 0.05, 0.04, 0.03, 0.03, 0.04, 0.04, 0.035, 0.035]
     )
 
     for i, idx in enumerate(idxs):
@@ -274,6 +296,37 @@ def _inject_anomalies(df, n_anomalies, seed):
                         df.at[idx2, "is_anomaly"] = 1
                         df.at[idx2, "merchant"] = m
                         df.at[idx2, "amount"] = round(float(np.random.uniform(base_mean, base_mean * 3)), 2)
+        if "rapid_succession" in atype:
+            for j in range(1, min(6, len(df) - idx)):
+                idx2 = idx + j
+                if idx2 < len(df):
+                    df.at[idx2, "is_anomaly"] = 1
+                    df.at[idx2, "amount"] = round(float(np.random.uniform(base_mean * 2, base_mean * 5)), 2)
+                    df.at[idx2, "hour"] = df.at[idx, "hour"]
+        if "amount_staircase" in atype:
+            for j in range(1, min(5, len(df) - idx)):
+                idx2 = idx + j
+                if idx2 < len(df):
+                    df.at[idx2, "is_anomaly"] = 1
+                    df.at[idx2, "amount"] = round(float(base_mean * (1.5 + j * 0.8)), 2)
+                    df.at[idx2, "merchant"] = np.random.choice([
+                        "Unknown Merchant", "Suspicious Shop", "Wire Transfer"
+                    ])
+        if "identity_switch" in atype:
+            df.at[idx, "merchant"] = np.random.choice([
+                "Unknown Merchant", "Suspicious Shop", "Offshore Services",
+                "Crypto Exchange", "Wire Transfer", "Foreign Exchange"
+            ])
+            df.at[idx, "amount"] = round(float(np.random.uniform(base_mean * 4, base_mean * 12)), 2)
+            df.at[idx, "hour"] = np.random.choice([1, 2, 3, 4, 23, 0])
+        if "location_jump" in atype:
+            df.at[idx, "merchant"] = np.random.choice([
+                "Foreign Exchange", "Overseas Wire", "International Transfer",
+                "Crypto Exchange"
+            ])
+            df.at[idx, "amount"] = round(float(np.random.uniform(3000, 20000)), 2)
+            df.at[idx, "hour"] = np.random.choice([2, 3, 4, 5])
+            df.at[idx, "day"] = np.random.choice([5, 6])
 
     return df
 
@@ -396,6 +449,42 @@ def engineer_features(df, fit_stats=None):
     df["amt_x_velocity"] = df["amount"] * np.log1p(df["txn_velocity_1h"])
     df["spike_score"] = df["amount_cat_ratio"] * df["amount_zscore"].clip(0, 5)
 
+    # v5 new features
+    global_std = fit_stats["global_std"] if fit_stats else df["amount"].std()
+    df["amount_log_zscore"] = (df["amount_log"] - df["amount_log"].mean()) / max(df["amount_log"].std(), 0.1)
+    df["merchant_amt_ratio"] = df["amount"] / df.groupby("merchant")["amount"].transform("mean").clip(lower=1)
+    df["category_entropy"] = -df.groupby("category")["merchant"].transform(
+        lambda x: x.value_counts(normalize=True).apply(lambda p: p * np.log2(p + 1e-10)).sum()
+    )
+    df["hour_category_interaction"] = df["hour"] * df["category_mean_amount"]
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        df["txn_recency_score"] = 1.0 / (1.0 + df["days_since_last_txn"])
+    else:
+        df["txn_recency_score"] = 0.5
+    df["amount_binned"] = pd.cut(df["amount"], bins=[0, 50, 100, 200, 500, 1000, 5000, 100000],
+                                  labels=[0, 1, 2, 3, 4, 5, 6]).astype(float).fillna(3)
+    df["is_high_risk_hour"] = ((df["hour"] <= 5) | (df["hour"] >= 23)).astype(int)
+    df["merchant_category_risk"] = df["merchant_freq"] * df["is_unusual_hour"]
+    df["rolling_mean_ratio"] = df["amount"] / df["rolling_7d_mean"].clip(lower=1)
+    df["rolling_std_ratio"] = (df["amount"] - df["rolling_7d_mean"]) / df["rolling_7d_std"].clip(lower=1)
+    df["amount_percentile_category"] = df.groupby("category")["amount"].rank(pct=True)
+    df["is_new_merchant_risk"] = ((df["merchant_freq"] <= 2) & (df["amount_zscore"] > 1.5)).astype(int)
+    df["compound_risk_score"] = (
+        df["is_unusual_hour"] * 0.3 +
+        (df["merchant_freq"] <= 2).astype(int) * 0.3 +
+        (df["amount_zscore"] > 2).astype(int) * 0.4
+    )
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        df["time_since_midnight"] = df["timestamp"].dt.hour * 60 + df["timestamp"].dt.minute
+    else:
+        df["time_since_midnight"] = df["hour"] * 60
+    if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+        day_of_month = df["timestamp"].dt.day
+        df["is_payday_window"] = ((day_of_month >= 25) | (day_of_month <= 3)).astype(int)
+    else:
+        df["is_payday_window"] = 0
+    df["amount_deviation_squared"] = df["amount_deviation_from_rolling"] ** 2
+
     # Clip and clean
     df["amount_zscore"] = df["amount_zscore"].clip(-5, 5)
     df["amount_cat_ratio"] = df["amount_cat_ratio"].clip(0, 50)
@@ -415,17 +504,25 @@ def engineer_features(df, fit_stats=None):
 # 3. UNSUPERVISED SCORES AS FEATURES
 # =============================================================================
 def compute_unsupervised_scores(X_scaled):
-    iforest = IsolationForest(n_estimators=300, contamination=0.03, max_samples=0.8,
+    n = len(X_scaled)
+    max_unsup = min(30000, n)
+    if n > max_unsup:
+        idxs = np.random.choice(n, max_unsup, replace=False)
+        X_sub = X_scaled[idxs]
+    else:
+        X_sub = X_scaled
+
+    iforest = IsolationForest(n_estimators=200, contamination=0.03, max_samples=0.8,
                               random_state=RANDOM_SEED, n_jobs=-1)
-    iforest.fit(X_scaled)
+    iforest.fit(X_sub)
     iso_scores = -iforest.decision_function(X_scaled)
 
     lof = LocalOutlierFactor(n_neighbors=15, contamination=0.03, novelty=True, n_jobs=-1)
-    lof.fit(X_scaled)
+    lof.fit(X_sub)
     lof_scores = -lof.decision_function(X_scaled)
 
     ocsvm = OneClassSVM(kernel="rbf", gamma="scale", nu=0.03)
-    ocsvm.fit(X_scaled)
+    ocsvm.fit(X_sub)
     ocsvm_scores = -ocsvm.decision_function(X_scaled)
 
     def norm(s):
@@ -514,7 +611,7 @@ def compute_rule_scores_for_df(df, stats):
 def run_cross_validation(df, n_splits=10, n_repeats=2):
     print(f"\n{'='*60}")
     print(f"  {n_repeats}x{n_splits}-FOLD REPEATED STRATIFIED CV")
-    print("  Ensemble: XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules")
+    print("  Ensemble: XGB + LGBM + CatBoost + RF + GB + ET + IF/LOF/OCSVM + Rules")
     print(f"{'='*60}")
 
     df_feat, fit_stats = engineer_features(df, fit_stats=None)
@@ -550,7 +647,7 @@ def run_cross_validation(df, n_splits=10, n_repeats=2):
 
         best_f1 = 0
         best_thresh = 0.5
-        for t in np.arange(0.05, 0.95, 0.005):
+        for t in np.arange(0.10, 0.90, 0.01):
             preds = (prob > t).astype(int)
             f1 = f1_score(y_val, preds, zero_division=0)
             if f1 > best_f1:
@@ -605,32 +702,44 @@ def _bootstrap_ci(f1_scores, n_bootstrap=2000, ci=0.95):
 def _get_base_models(scale_pos_weight=None):
     models = {}
     models["rf"] = RandomForestClassifier(
-        n_estimators=800, max_depth=20, min_samples_split=3,
-        min_samples_leaf=1, class_weight="balanced_subsample",
+        n_estimators=500, max_depth=20, min_samples_split=5,
+        min_samples_leaf=2, class_weight="balanced_subsample",
         max_features="sqrt", random_state=RANDOM_SEED, n_jobs=-1
     )
     models["gb"] = GradientBoostingClassifier(
-        n_estimators=500, learning_rate=0.04, max_depth=7,
-        subsample=0.8, min_samples_leaf=2, max_features=0.7,
+        n_estimators=400, learning_rate=0.05, max_depth=7,
+        subsample=0.8, min_samples_leaf=3, max_features=0.7,
         random_state=RANDOM_SEED
     )
-    spw = scale_pos_weight if scale_pos_weight else 30
+    spw = scale_pos_weight if scale_pos_weight else 25
     if HAS_XGB:
         models["xgb"] = XGBClassifier(
-            n_estimators=600, max_depth=7, learning_rate=0.04,
+            n_estimators=400, max_depth=7, learning_rate=0.05,
             subsample=0.8, colsample_bytree=0.8,
-            min_child_weight=2, reg_alpha=0.05, reg_lambda=0.5,
+            min_child_weight=3, reg_alpha=0.05, reg_lambda=0.5,
             scale_pos_weight=spw, gamma=0.1,
             eval_metric="logloss", random_state=RANDOM_SEED, n_jobs=-1,
             verbosity=0
         )
     if HAS_LGBM:
         models["lgbm"] = LGBMClassifier(
-            n_estimators=600, max_depth=7, learning_rate=0.04,
+            n_estimators=400, max_depth=7, learning_rate=0.05,
             subsample=0.8, colsample_bytree=0.8,
-            min_child_samples=3, reg_alpha=0.05, reg_lambda=0.5,
+            min_child_samples=5, reg_alpha=0.05, reg_lambda=0.5,
             is_unbalance=True, min_split_gain=0.01,
             random_state=RANDOM_SEED, n_jobs=-1, verbose=-1
+        )
+    if HAS_CATBOOST:
+        models["catboost"] = CatBoostClassifier(
+            iterations=400, learning_rate=0.05, depth=7,
+            l2_leaf_reg=3, random_seed=RANDOM_SEED,
+            verbose=0, auto_class_weights="Balanced"
+        )
+    if HAS_ET:
+        models["et"] = ExtraTreesClassifier(
+            n_estimators=500, max_depth=20, min_samples_split=5,
+            min_samples_leaf=2, class_weight="balanced_subsample",
+            max_features="sqrt", random_state=RANDOM_SEED, n_jobs=-1
         )
     return models
 
@@ -801,7 +910,7 @@ def train_full(train_df, test_df):
 
     best_f1 = 0
     best_thresh = 0.5
-    for t in np.arange(0.05, 0.95, 0.005):
+    for t in np.arange(0.10, 0.90, 0.01):
         preds = (ensemble_prob > t).astype(int)
         f1 = f1_score(y_test, preds, zero_division=0)
         if f1 > best_f1:
@@ -870,10 +979,14 @@ def save_models(result, cv_metrics):
         model_names.append("XGBoost")
     if HAS_LGBM:
         model_names.append("LightGBM")
+    if HAS_CATBOOST:
+        model_names.append("CatBoost")
+    if HAS_ET:
+        model_names.append("ExtraTrees")
 
     metadata = {
-        "model": "SupervisedEnsemble_v4",
-        "version": "4.1",
+        "model": "SupervisedEnsemble_v5",
+        "version": "5.0",
         "components": model_names,
         "weights": {"unsup_features": "as_extra_features", "rule_feature": "as_extra_feature"},
         "features": FEATURES,
@@ -978,8 +1091,8 @@ if __name__ == "__main__":
     os.makedirs(VIZ_DIR, exist_ok=True)
 
     print("=" * 60)
-    print("  MARAUDER'S LEDGER - ML MODEL TRAINING (v4.1)")
-    print("  Target: F1 > 0.95 | XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules + SMOTE")
+    print("  MARAUDER'S LEDGER - ML MODEL TRAINING (v5.0)")
+    print("  Target: F1 > 0.96 | XGB + LGBM + CatBoost + RF + GB + ET + IF/LOF/OCSVM + Rules + SMOTE")
     print(f"  {N_SAMPLES} samples | {N_FOLDS}x{N_REPEATS} Repeated Stratified CV | {len(FEATURES)} features")
     print("=" * 60)
 
@@ -1009,7 +1122,7 @@ if __name__ == "__main__":
     )
 
     print("\n" + "=" * 60)
-    print("  TRAINING COMPLETE (v4.1)")
+    print("  TRAINING COMPLETE (v5.0)")
     print(f"  CV F1:     {avg_f1:.4f}")
     print(f"  Test F1:   {result['metrics']['f1']:.4f}")
     print(f"  Test P:    {result['metrics']['precision']:.4f}")

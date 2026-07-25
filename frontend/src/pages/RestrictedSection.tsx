@@ -2,35 +2,46 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-
-const PROTOCOLS = [
-  { name: 'Anti-Disapparition Jinx', desc: 'Prevents unauthorized appition within vault perimeter', enabled: true },
-  { name: 'Muggle-Repelling Charm', desc: 'Deters non-magical persons from sensitive areas', enabled: true },
-  { name: 'Fidelius Charm', desc: 'Conceals location of secret assets', enabled: false },
-  { name: 'Protego Totalum', desc: 'Shields all perimeter boundaries', enabled: true },
-  { name: 'Salvio Hexia', desc: 'Repels hexes and jinxes from records', enabled: false },
-]
-
-const GUARDIANS = [
-  { name: 'Alastor Moody', access: ['vault', 'map', 'registry'], level: 'admin' },
-  { name: 'Nymphadora Tonks', access: ['map', 'owlry'], level: 'auror' },
-  { name: 'Kingsley Shacklebolt', access: ['vault', 'pensieve', 'registry'], level: 'admin' },
-  { name: 'Cornelius Fudge', access: ['daily-prophet'], level: 'ministry' },
-]
-
-const INTRUSIONS = [
-  { time: '14:32', source: 'Unregistered Portkey', level: 'warn', location: 'Vault perimeter' },
-  { time: '13:15', source: 'Failed authentication echo', level: 'info', location: 'Restricted Section' },
-  { time: '11:48', source: 'Polyjuice residue detected', level: 'critical', location: 'Great Hall' },
-  { time: '09:22', source: 'Unauthorized Owl intercepted', level: 'info', location: 'Owlry' },
-]
+import { useAnomalies } from '../hooks/useAnomalies'
 
 export default function RestrictedSection() {
-  const [protocols, setProtocols] = useState(PROTOCOLS)
+  const { data: anomalies = [] } = useAnomalies()
+
+  const highAnomalies = anomalies.filter((a) => a.severity === 'high')
+  const medAnomalies = anomalies.filter((a) => a.severity === 'medium')
+
+  const [protocols, setProtocols] = useState([
+    { name: 'Anti-Disapparition Jinx', desc: 'Prevents unauthorized access within vault perimeter', enabled: true },
+    { name: 'Muggle-Repelling Charm', desc: 'Deters non-magical persons from sensitive areas', enabled: true },
+    { name: 'Fidelius Charm', desc: 'Conceals location of secret assets', enabled: false },
+    { name: 'Protego Totalum', desc: 'Shields all perimeter boundaries', enabled: true },
+    { name: 'Salvio Hexia', desc: 'Repels hexes and jinxes from records', enabled: false },
+  ])
 
   const toggleProtocol = (index: number) => {
     setProtocols((prev) => prev.map((p, i) => i === index ? { ...p, enabled: !p.enabled } : p))
   }
+
+  const INTRUSIONS = [
+    ...highAnomalies.slice(0, 2).map((a) => ({
+      time: a.detected_at ? new Date(a.detected_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '14:32',
+      source: `${a.merchant} — Unusual activity`,
+      level: 'critical' as const,
+      location: a.category,
+    })),
+    ...medAnomalies.slice(0, 2).map((a) => ({
+      time: a.detected_at ? new Date(a.detected_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '13:15',
+      source: `${a.merchant} — Pattern anomaly`,
+      level: 'warn' as const,
+      location: a.category,
+    })),
+  ]
+
+  const fallbackIntrusions = [
+    { time: '14:32', source: 'No intrusions detected', level: 'info' as const, location: 'System' },
+  ]
+
+  const displayIntrusions = INTRUSIONS.length > 0 ? INTRUSIONS : fallbackIntrusions
 
   return (
     <div className="min-h-screen ml-[72px]">
@@ -42,7 +53,6 @@ export default function RestrictedSection() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Protocols */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             className="bg-[#faf3e6] rounded-xl p-6 shadow-md">
             <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Security Protocols</h3>
@@ -66,42 +76,37 @@ export default function RestrictedSection() {
             </div>
           </motion.div>
 
-          {/* Guardian Permissions */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="bg-[#faf3e6] rounded-xl p-6 shadow-md">
-            <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Guardian Permissions</h3>
+            <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Threat Summary</h3>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-white/50 rounded-lg text-center">
+                <div className="font-cinzel text-2xl text-[#dc2626]">{highAnomalies.length}</div>
+                <span className="font-crimson text-xs text-[#504440]">Critical Threats</span>
+              </div>
+              <div className="p-4 bg-white/50 rounded-lg text-center">
+                <div className="font-cinzel text-2xl text-[#d4af37]">{medAnomalies.length}</div>
+                <span className="font-crimson text-xs text-[#504440]">Warnings</span>
+              </div>
+            </div>
             <div className="space-y-3">
-              {GUARDIANS.map((g, i) => (
-                <div key={i} className="p-4 bg-white/50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-crimson text-sm text-[#2c1810] font-semibold">{g.name}</h4>
-                    <span className={`px-2 py-0.5 rounded-full font-crimson text-[10px] ${
-                      g.level === 'admin' ? 'bg-[#dc2626]/10 text-[#dc2626]' :
-                      g.level === 'auror' ? 'bg-[#735c00]/10 text-[#735c00]' :
-                      'bg-[#504440]/10 text-[#504440]'
-                    }`}>{g.level}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {g.access.map((a) => (
-                      <span key={a} className="px-2 py-0.5 bg-[#735c00]/10 text-[#735c00] rounded font-mono text-[10px]">{a}</span>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <button className="font-crimson text-xs text-[#735c00] hover:text-[#2c1810] underline underline-offset-2">Edit</button>
-                    <button className="font-crimson text-xs text-[#dc2626] hover:text-[#dc2626]/80 underline underline-offset-2">Revoke</button>
-                  </div>
-                </div>
-              ))}
+              <div className="p-3 bg-white/50 rounded-lg">
+                <h4 className="font-crimson text-sm text-[#2c1810] font-semibold">System Status</h4>
+                <p className="font-crimson text-xs text-[#2d6a4f]">All perimeter wards active</p>
+              </div>
+              <div className="p-3 bg-white/50 rounded-lg">
+                <h4 className="font-crimson text-sm text-[#2c1810] font-semibold">Last Scan</h4>
+                <p className="font-crimson text-xs text-[#504440]">All anomalies accounted for</p>
+              </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Intrusion Log */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="mt-8 bg-[#faf3e6] rounded-xl p-6 shadow-md">
           <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Intrusion Log</h3>
           <div className="space-y-2">
-            {INTRUSIONS.map((log, i) => (
+            {displayIntrusions.map((log, i) => (
               <div key={i} className={`flex items-center gap-4 p-3 rounded-lg ${
                 log.level === 'critical' ? 'bg-[#dc2626]/5 border-l-2 border-[#dc2626]' :
                 log.level === 'warn' ? 'bg-[#d4af37]/5 border-l-2 border-[#d4af37]' :
