@@ -21,8 +21,20 @@ const SESSION_KEY = 'marauders_session'
 
 function getStoredUsers(): Record<string, { password: string; name: string }> {
   try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || '{}')
-  } catch { return {} }
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}')
+    // Seed default test account if none exists
+    if (Object.keys(users).length === 0) {
+      users['marauder@hogwarts.edu'] = { password: 'lumos123', name: 'Marauder' }
+      localStorage.setItem(USERS_KEY, JSON.stringify(users))
+    }
+    return users
+  } catch {
+    const defaults: Record<string, { password: string; name: string }> = {
+      'marauder@hogwarts.edu': { password: 'lumos123', name: 'Marauder' },
+    }
+    localStorage.setItem(USERS_KEY, JSON.stringify(defaults))
+    return defaults
+  }
 }
 
 function storeUser(email: string, password: string, name: string) {

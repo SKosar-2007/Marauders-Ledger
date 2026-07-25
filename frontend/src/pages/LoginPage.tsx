@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 
 export default function LoginPage() {
   const { login, signup } = useAuth()
+  const navigate = useNavigate()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -18,11 +20,13 @@ export default function LoginPage() {
     try {
       if (mode === 'login') {
         const ok = await login(email, password)
-        if (!ok) setError('Invalid credentials. Try signing up first.')
+        if (!ok) { setError('Invalid credentials. Try signing up first.'); return }
+        navigate('/')
       } else {
-        if (!name.trim()) { setError('Name is required'); setLoading(false); return }
+        if (!name.trim()) { setError('Name is required'); return }
         const ok = await signup(name, email, password)
-        if (!ok) setError('Account already exists.')
+        if (!ok) { setError('Account already exists.'); return }
+        navigate('/')
       }
     } finally {
       setLoading(false)
@@ -63,6 +67,11 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {mode === 'login' && (
+              <p className="font-crimson text-xs text-[#504440] text-center bg-[#f4e0bb]/50 rounded-lg px-3 py-2">
+                Test: <span className="font-mono text-[#735c00]">marauder@hogwarts.edu</span> / <span className="font-mono text-[#735c00]">lumos123</span>
+              </p>
+            )}
             <AnimatePresence mode="wait">
               {mode === 'signup' && (
                 <motion.div key="name" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
