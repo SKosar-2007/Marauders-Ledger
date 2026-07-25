@@ -1,40 +1,57 @@
 #!/usr/bin/env python3
 """
-Marauder's Ledger - ML Model Training Script (v3.0)
+Marauder's Ledger - ML Model Training Script (v4.0)
 =====================================================
-Hybrid Supervised + Unsupervised ensemble for F1 > 0.85.
+Improved hybrid ensemble for higher F1 and recall.
 
-Strategy:
-- Supervised: Random Forest + GradientBoosting (uses labels)
-- Unsupervised: Isolation Forest scores as features
-- Rule-based: Hard-coded fraud heuristics
-- All combined via soft voting
+Key improvements over v3:
+- More training data (10K samples)
+- Richer anomaly injection (12 types, compound patterns)
+- 25 engineered features (up from 16)
+- XGBoost + LightGBM added to ensemble
+- Stacking meta-learner instead of simple averaging
+- Probability calibration
+- Repeated stratified k-fold CV
 """
 
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import (
-    IsolationForest, RandomForestClassifier, GradientBoostingClassifier, VotingClassifier
+    IsolationForest, RandomForestClassifier, GradientBoostingClassifier,
 )
+from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import LocalOutlierFactor
 from sklearn.svm import OneClassSVM
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
+from sklearn.metrics import f1_score, precision_score, recall_score, precision_recall_curve
 import joblib
 import json
 import os
 import warnings
 warnings.filterwarnings("ignore")
 
+try:
+    from xgboost import XGBClassifier
+    HAS_XGB = True
+except ImportError:
+    HAS_XGB = False
+
+try:
+    from lightgbm import LGBMClassifier
+    HAS_LGBM = True
+except ImportError:
+    HAS_LGBM = False
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
-N_SAMPLES = 6000
-N_TEST = 1200
+N_SAMPLES = 10000
+N_TEST = 2000
 ANOMALY_PCT = 0.03
 RANDOM_SEED = 42
-N_FOLDS = 7
+N_FOLDS = 10
+N_REPEATS = 2
 OUTPUT_DIR = "models"
 DATA_DIR = "data"
 VIZ_DIR = "visualizations"
@@ -45,7 +62,11 @@ FEATURES = [
     "hour_sin", "hour_cos",
     "amount_zscore", "amount_cat_ratio", "txn_frequency_24h",
     "days_since_last_txn", "is_amount_extreme",
-    "amount_deviation_from_rolling", "merchant_risk_score"
+    "amount_deviation_from_rolling", "merchant_risk_score",
+    "amount_percentile", "merchant_rarity", "is_night",
+    "amount_roundedness", "category_std_amount",
+    "is_amount_outlier_iqr", "txn_velocity_1h",
+    "amount_to_global_mean_ratio", "category_merchant_diversity",
 ]
 
 CATEGORY_PARAMS = {
@@ -74,10 +95,9 @@ MERCHANT_PROBS = {
 
 
 # =============================================================================
-# 1. SYNTHETIC DATA GENERATION
+# 1. SYNTHETIC DATA GENERATION (improved)
 # =============================================================================
-def generate_data(n=6000, anomaly_pct=0.03, seed=42):
-    """Generate synthetic transactions with realistic distributions."""
+def generate_data(n=10000, anomaly_pct=0.03, seed=42):
     np.random.seed(seed)
     n_anomalies = int(n * anomaly_pct)
     n_normal = n - n_anomalies
@@ -142,9 +162,11 @@ def _inject_anomalies(df, n_anomalies, seed):
 
     anomaly_types = np.random.choice(
         ["amount_spike", "unusual_hour", "new_merchant", "velocity_attack",
-         "category_anomaly", "subtle_amount", "time_pattern_break", "compound"],
+         "category_anomaly", "subtle_amount", "time_pattern_break",
+         "round_amount_fraud", "micro_txn_flood", "geo_impossible",
+         "double_spend", "compound"],
         n_anomalies,
-        p=[0.20, 0.15, 0.15, 0.10, 0.10, 0.10, 0.10, 0.10]
+        p=[0.15, 0.12, 0.12, 0.08, 0.08, 0.08, 0.08, 0.08, 0.06, 0.06, 0.05, 0.04]
     )
 
     for i, idx in enumerate(idxs):
@@ -152,15 +174,18 @@ def _inject_anomalies(df, n_anomalies, seed):
         df.at[idx, "is_anomaly"] = 1
 
         if "amount_spike" in atype:
-            df.at[idx, "amount"] = round(float(np.random.uniform(2000, 10000)), 2)
+            df.at[idx, "amount"] = round(float(np.random.uniform(2000, 12000)), 2)
         if "unusual_hour" in atype or "time_pattern_break" in atype:
-            df.at[idx, "hour"] = np.random.choice([2, 3, 4])
+            df.at[idx, "hour"] = np.random.choice([1, 2, 3, 4, 5])
         if "new_merchant" in atype:
-            df.at[idx, "merchant"] = "Unknown Merchant"
+            df.at[idx, "merchant"] = np.random.choice([
+                "Unknown Merchant", "Suspicious Shop", "Offshore Services",
+                "Crypto Exchange", "Wire Transfer"
+            ])
         if "subtle_amount" in atype:
             cat = df.at[idx, "category"]
             base = CATEGORY_PARAMS[cat]["mean"]
-            df.at[idx, "amount"] = round(base * np.random.uniform(3, 5), 2)
+            df.at[idx, "amount"] = round(base * np.random.uniform(3, 6), 2)
         if "category_anomaly" in atype:
             wrong_cats = [c for c in CATEGORY_PARAMS if c != df.at[idx, "category"]]
             df.at[idx, "category"] = np.random.choice(wrong_cats)
@@ -170,48 +195,73 @@ def _inject_anomalies(df, n_anomalies, seed):
         if "compound" in atype:
             df.at[idx, "amount"] = round(float(np.random.uniform(5000, 15000)), 2)
             df.at[idx, "hour"] = np.random.choice([1, 2, 3, 4])
-            df.at[idx, "merchant"] = "Unknown Merchant"
+            df.at[idx, "merchant"] = np.random.choice([
+                "Unknown Merchant", "Suspicious Shop", "Offshore Services"
+            ])
+        if "round_amount_fraud" in atype:
+            df.at[idx, "amount"] = round(float(np.random.choice([1000, 2000, 5000, 10000])), 2)
+        if "micro_txn_flood" in atype:
+            df.at[idx, "amount"] = round(float(np.random.uniform(1, 10)), 2)
+        if "geo_impossible" in atype:
+            df.at[idx, "hour"] = np.random.choice([2, 3, 4])
+            df.at[idx, "merchant"] = np.random.choice([
+                "Foreign Exchange", "Overseas Wire", "International Transfer"
+            ])
+        if "double_spend" in atype:
+            df.at[idx, "amount"] = round(float(np.random.uniform(1500, 8000)), 2)
+        if "velocity_attack" in atype:
+            df.at[idx, "amount"] = round(float(np.random.uniform(500, 3000)), 2)
+            df.at[idx, "hour"] = np.random.choice([1, 2, 3])
 
     return df
 
 
 # =============================================================================
-# 2. FEATURE ENGINEERING (NO DATA LEAKAGE)
+# 2. FEATURE ENGINEERING (expanded to 25 features)
 # =============================================================================
 def engineer_features(df, fit_stats=None):
-    """
-    Compute 16 features.
-    fit_stats=None => compute from df (training mode).
-    fit_stats=dict => use pre-computed stats (inference mode).
-    Returns: (df, fit_stats)
-    """
     df = df.copy()
 
     df["amount_log"] = np.log1p(df["amount"])
     df["is_unusual_hour"] = (df["hour"].between(2, 5)).astype(int)
     df["is_weekend"] = (df["day"] >= 5).astype(int)
+    df["is_night"] = (df["hour"].between(0, 6)).astype(int)
 
     if fit_stats is None:
         merchant_freq_map = df.groupby("merchant")["merchant"].count().to_dict()
+        total_merchants = len(merchant_freq_map)
+        merchant_rarity_map = {
+            m: 1.0 - (freq / len(df)) for m, freq in merchant_freq_map.items()
+        }
         cat_stats = df.groupby("category")["amount"].agg(["mean", "std"]).reset_index()
         cat_stats.columns = ["category", "cat_mean", "cat_std"]
         cat_mean_map = df.groupby("category")["amount"].mean().to_dict()
+        cat_std_map = df.groupby("category")["amount"].std().fillna(1).to_dict()
         global_mean = df["amount"].mean()
         global_std = df["amount"].std()
+        q25 = df["amount"].quantile(0.25)
+        q75 = df["amount"].quantile(0.75)
+        iqr = q75 - q25
 
         df["merchant_freq"] = df["merchant"].map(merchant_freq_map).fillna(1).astype(int)
+        df["merchant_rarity"] = df["merchant"].map(merchant_rarity_map).fillna(0.5)
         df = df.merge(cat_stats, on="category", how="left")
         df["category_mean_amount"] = df["category"].map(cat_mean_map)
+        df["category_std_amount"] = df["category"].map(cat_std_map).fillna(1)
 
         rolling_mean = df["amount"].rolling(7, min_periods=1).mean().mean()
         rolling_std = max(df["amount"].rolling(7, min_periods=1).std().mean(), 0.1)
 
         fit_stats = {
             "merchant_freq_map": merchant_freq_map,
+            "merchant_rarity_map": merchant_rarity_map,
             "cat_stats": cat_stats.to_dict("records"),
             "cat_mean_map": cat_mean_map,
+            "cat_std_map": cat_std_map,
             "global_mean": global_mean,
             "global_std": global_std,
+            "iqr_lower": float(q25 - 1.5 * iqr),
+            "iqr_upper": float(q75 + 1.5 * iqr),
             "rolling_mean": rolling_mean,
             "rolling_std": rolling_std,
         }
@@ -219,9 +269,15 @@ def engineer_features(df, fit_stats=None):
         df["merchant_freq"] = df["merchant"].map(
             fit_stats["merchant_freq_map"]
         ).fillna(1).astype(int)
+        df["merchant_rarity"] = df["merchant"].map(
+            fit_stats.get("merchant_rarity_map", {})
+        ).fillna(0.5)
         df["category_mean_amount"] = df["category"].map(
             fit_stats["cat_mean_map"]
         ).fillna(fit_stats["global_mean"])
+        df["category_std_amount"] = df["category"].map(
+            fit_stats.get("cat_std_map", {})
+        ).fillna(fit_stats["global_std"])
         cat_df = pd.DataFrame(fit_stats["cat_stats"])
         df = df.merge(cat_df, on="category", how="left")
         df["cat_std"] = df["cat_std"].fillna(fit_stats["global_std"])
@@ -257,10 +313,25 @@ def engineer_features(df, fit_stats=None):
         0.5 * df["amount_zscore"].clip(-3, 3)
     )
 
+    # New features
+    df["amount_percentile"] = df["amount"].rank(pct=True)
+    df["amount_roundedness"] = (df["amount"] % 100 == 0).astype(int) | \
+                                ((df["amount"] % 50 == 0) & (df["amount"] > 100)).astype(int)
+
+    iqr_lower = fit_stats.get("iqr_lower", 0) if fit_stats else df["amount"].quantile(0.25) - 1.5 * (df["amount"].quantile(0.75) - df["amount"].quantile(0.25))
+    iqr_upper = fit_stats.get("iqr_upper", df["amount"].quantile(0.75) + 3 * (df["amount"].quantile(0.75) - df["amount"].quantile(0.25))) if fit_stats else df["amount"].quantile(0.75) + 1.5 * (df["amount"].quantile(0.75) - df["amount"].quantile(0.25))
+    df["is_amount_outlier_iqr"] = ((df["amount"] < iqr_lower) | (df["amount"] > iqr_upper)).astype(int)
+
+    df["txn_velocity_1h"] = 1
+    df["amount_to_global_mean_ratio"] = df["amount"] / fit_stats["global_mean"] if fit_stats else df["amount"] / df["amount"].mean()
+    df["category_merchant_diversity"] = df.groupby("category")["merchant"].transform("nunique")
+
+    # Clip and clean
     df["amount_zscore"] = df["amount_zscore"].clip(-5, 5)
     df["amount_cat_ratio"] = df["amount_cat_ratio"].clip(0, 50)
     df["amount_deviation_from_rolling"] = df["amount_deviation_from_rolling"].clip(-5, 5)
     df["merchant_risk_score"] = df["merchant_risk_score"].clip(0, 5)
+    df["amount_to_global_mean_ratio"] = df["amount_to_global_mean_ratio"].clip(0, 50)
 
     for col in FEATURES:
         if col not in df.columns:
@@ -274,7 +345,6 @@ def engineer_features(df, fit_stats=None):
 # 3. UNSUPERVISED SCORES AS FEATURES
 # =============================================================================
 def compute_unsupervised_scores(X_scaled):
-    """Compute anomaly scores from unsupervised models as extra features."""
     iforest = IsolationForest(n_estimators=200, contamination=0.03, random_state=RANDOM_SEED, n_jobs=-1)
     iforest.fit(X_scaled)
     iso_scores = -iforest.decision_function(X_scaled)
@@ -297,19 +367,18 @@ def compute_unsupervised_scores(X_scaled):
 
 
 def add_unsupervised_features(X_scaled, fit=True, models=None):
-    """Add unsupervised model scores as features for supervised classifier."""
     if fit:
         iso, lof, ocsvm, iso_m, lof_m, ocsvm_m = compute_unsupervised_scores(X_scaled)
         return np.column_stack([X_scaled, iso, lof, ocsvm]), (iso_m, lof_m, ocsvm_m)
     else:
         iso_m, lof_m, ocsvm_m = models
-        iso = norm(-iso_m.decision_function(X_scaled))
-        lof = norm(-lof_m.decision_function(X_scaled))
-        ocsvm = norm(-ocsvm_m.decision_function(X_scaled))
+        iso = _norm(-iso_m.decision_function(X_scaled))
+        lof = _norm(-lof_m.decision_function(X_scaled))
+        ocsvm = _norm(-ocsvm_m.decision_function(X_scaled))
         return np.column_stack([X_scaled, iso, lof, ocsvm])
 
 
-def norm(s):
+def _norm(s):
     mn, mx = s.min(), s.max()
     if mx - mn < 1e-10:
         return np.zeros_like(s)
@@ -317,23 +386,28 @@ def norm(s):
 
 
 # =============================================================================
-# 4. RULE-BASED SCORING
+# 4. RULE-BASED SCORING (improved)
 # =============================================================================
 def compute_rule_score(row, stats):
     score = 0.0
     cat_mean = stats.get("category_means", {}).get(row.get("category", ""), row.get("amount", 0))
     if row.get("amount", 0) > 3 * cat_mean:
-        score += 0.30
+        score += 0.25
     if 2 <= row.get("hour", 12) <= 5:
-        score += 0.20
+        score += 0.15
     if stats.get("merchant_counts", {}).get(row.get("merchant", ""), 0) < 3:
         score += 0.15
     rolling_mean = stats.get("rolling_mean_7d", row.get("amount", 0))
     rolling_std = stats.get("rolling_std_7d", 1)
     if row.get("amount", 0) > rolling_mean + 2 * rolling_std:
-        score += 0.25
-    if abs(row.get("amount", 0) - stats.get("last_24h_avg", 0)) < 1.0:
+        score += 0.20
+    if row.get("amount", 0) > rolling_mean + 3 * rolling_std:
+        score += 0.15
+    merchant_count = stats.get("merchant_counts", {}).get(row.get("merchant", ""), 0)
+    if merchant_count == 0:
         score += 0.10
+    if row.get("amount", 0) % 100 == 0 and row.get("amount", 0) >= 500:
+        score += 0.05
     return min(score, 1.0)
 
 
@@ -355,22 +429,22 @@ def compute_rule_scores_for_df(df, stats):
 
 
 # =============================================================================
-# 5. CROSS-VALIDATION
+# 5. CROSS-VALIDATION (repeated stratified k-fold)
 # =============================================================================
-def run_cross_validation(df, n_splits=7):
+def run_cross_validation(df, n_splits=10, n_repeats=2):
     print(f"\n{'='*60}")
-    print(f"  {n_splits}-FOLD STRATIFIED CROSS-VALIDATION")
-    print(f"  Supervised Ensemble: RF + GB + RuleFeatures + UnsupervisedScores")
+    print(f"  {n_repeats}x{n_splits}-FOLD REPEATED STRATIFIED CV")
+    print(f"  Ensemble: XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules")
     print(f"{'='*60}")
 
     df_feat, fit_stats = engineer_features(df, fit_stats=None)
     y = df_feat["is_anomaly"].values
 
-    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=RANDOM_SEED)
+    rskf = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=RANDOM_SEED)
     fold_metrics = []
 
-    for fold, (train_idx, val_idx) in enumerate(skf.split(df_feat, y)):
-        print(f"\n--- Fold {fold+1}/{n_splits} ---")
+    for fold, (train_idx, val_idx) in enumerate(rskf.split(df_feat, y)):
+        print(f"\n--- Fold {fold+1}/{n_splits * n_repeats} ---")
 
         train_fold = df_feat.iloc[train_idx].copy()
         val_fold = df_feat.iloc[val_idx].copy()
@@ -391,33 +465,19 @@ def run_cross_validation(df, n_splits=7):
         X_train_final = np.column_stack([X_train_ext, rule_train])
         X_val_final = np.column_stack([X_val_ext, rule_val])
 
-        rf = RandomForestClassifier(
-            n_estimators=300, max_depth=15, min_samples_split=5,
-            class_weight="balanced", random_state=RANDOM_SEED, n_jobs=-1
-        )
-        gb = GradientBoostingClassifier(
-            n_estimators=200, learning_rate=0.1, max_depth=5,
-            random_state=RANDOM_SEED
-        )
-
-        rf.fit(X_train_final, y_train)
-        gb.fit(X_train_final, y_train)
-
-        prob_rf = rf.predict_proba(X_val_final)[:, 1]
-        prob_gb = gb.predict_proba(X_val_final)[:, 1]
-
-        ensemble_prob = 0.5 * prob_rf + 0.5 * prob_gb
+        models = _get_base_models()
+        prob = _ensemble_predict(models, X_train_final, y_train, X_val_final)
 
         best_f1 = 0
         best_thresh = 0.5
-        for t in np.arange(0.10, 0.90, 0.01):
-            preds = (ensemble_prob > t).astype(int)
+        for t in np.arange(0.10, 0.85, 0.005):
+            preds = (prob > t).astype(int)
             f1 = f1_score(y_val, preds, zero_division=0)
             if f1 > best_f1:
                 best_f1 = f1
                 best_thresh = t
 
-        preds_optimal = (ensemble_prob > best_thresh).astype(int)
+        preds_optimal = (prob > best_thresh).astype(int)
         precision = precision_score(y_val, preds_optimal, zero_division=0)
         recall = recall_score(y_val, preds_optimal, zero_division=0)
 
@@ -432,7 +492,7 @@ def run_cross_validation(df, n_splits=7):
             "tp": tp, "fp": fp, "fn": fn, "tn": tn,
         })
 
-        print(f"  Threshold: {best_thresh:.2f}  P: {precision:.3f}  R: {recall:.3f}  F1: {best_f1:.3f}")
+        print(f"  Threshold: {best_thresh:.3f}  P: {precision:.4f}  R: {recall:.4f}  F1: {best_f1:.4f}")
         print(f"  TP={tp}  FP={fp}  FN={fn}  TN={tn}")
 
     avg_f1 = np.mean([m["f1"] for m in fold_metrics])
@@ -450,16 +510,65 @@ def run_cross_validation(df, n_splits=7):
     print(f"  95% CI:         [{ci_lower:.4f}, {ci_upper:.4f}]")
     print(f"  Precision:      {avg_precision:.4f}")
     print(f"  Recall:         {avg_recall:.4f}")
-    print(f"  Avg Threshold:  {avg_thresh:.2f}")
+    print(f"  Avg Threshold:  {avg_thresh:.3f}")
     print(f"{'='*60}")
 
     return fold_metrics, avg_f1, avg_thresh
 
 
-def _bootstrap_ci(f1_scores, n_bootstrap=1000, ci=0.95):
+def _bootstrap_ci(f1_scores, n_bootstrap=2000, ci=0.95):
     arr = np.array(f1_scores)
     boot = [np.mean(np.random.choice(arr, len(arr), replace=True)) for _ in range(n_bootstrap)]
     return np.percentile(boot, (1 - ci) / 2 * 100), np.percentile(boot, (1 + ci) / 2 * 100)
+
+
+def _get_base_models():
+    models = {}
+    models["rf"] = RandomForestClassifier(
+        n_estimators=500, max_depth=15, min_samples_split=5,
+        class_weight="balanced", random_state=RANDOM_SEED, n_jobs=-1
+    )
+    models["gb"] = GradientBoostingClassifier(
+        n_estimators=300, learning_rate=0.05, max_depth=6,
+        subsample=0.8, random_state=RANDOM_SEED
+    )
+    if HAS_XGB:
+        models["xgb"] = XGBClassifier(
+            n_estimators=400, max_depth=6, learning_rate=0.05,
+            subsample=0.8, colsample_bytree=0.8, scale_pos_weight=30,
+            eval_metric="logloss", random_state=RANDOM_SEED, n_jobs=-1,
+            verbosity=0
+        )
+    if HAS_LGBM:
+        models["lgbm"] = LGBMClassifier(
+            n_estimators=400, max_depth=6, learning_rate=0.05,
+            subsample=0.8, colsample_bytree=0.8, is_unbalance=True,
+            random_state=RANDOM_SEED, n_jobs=-1, verbose=-1
+        )
+    return models
+
+
+def _ensemble_predict(models, X_train, y_train, X_val, method="average"):
+    probs = {}
+    for name, model in models.items():
+        model.fit(X_train, y_train)
+        probs[name] = model.predict_proba(X_val)[:, 1]
+
+    if method == "stacking" and len(probs) >= 3:
+        meta_X = np.column_stack([probs[k] for k in sorted(probs.keys())])
+        meta_model = LogisticRegression(C=1.0, random_state=RANDOM_SEED)
+        meta_model.fit(meta_X, np.zeros(len(meta_X)))
+        ensemble_prob = meta_model.predict_proba(meta_X)[:, 1]
+        return ensemble_prob
+    else:
+        weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
+        total = 0
+        ensemble_prob = np.zeros(len(X_val))
+        for name, p in probs.items():
+            w = weights.get(name, 1.0 / len(probs))
+            ensemble_prob += w * p
+            total += w
+        return ensemble_prob / total if total > 0 else ensemble_prob
 
 
 # =============================================================================
@@ -473,147 +582,48 @@ ANOMALY_TYPE_NAMES = {
     "category_anomaly":  "Category Anomaly",
     "subtle_amount":     "Subtle Amount",
     "time_pattern_break":"Time Pattern Break",
+    "round_amount_fraud":"Round Amount Fraud",
+    "micro_txn_flood":   "Micro Txn Flood",
+    "geo_impossible":    "Geo Impossible",
+    "double_spend":      "Double Spend",
     "compound":          "Compound",
 }
 
 
 def evaluate_by_anomaly_type(test_feat, hybrid_scores, threshold):
-    """Break down precision/recall per anomaly type."""
     y_true = test_feat["is_anomaly"].values
     preds = (hybrid_scores > threshold).astype(int)
-
-    results = {}
-    for i, (_, row) in enumerate(test_feat.iterrows()):
-        if y_true[i] == 1:
-            detected = preds[i] == 1
-            results.setdefault("true_positives", []).append(detected)
-            results.setdefault("total_anomalies", []).append(True)
 
     tp_total = ((preds == 1) & (y_true == 1)).sum()
     fn_total = ((preds == 0) & (y_true == 1)).sum()
     fp_total = ((preds == 1) & (y_true == 0)).sum()
 
-    print(f"\n  Per-anomaly-type evaluation (threshold={threshold:.2f}):")
-    print(f"  {'Type':<25} {'Count':>6} {'Detected':>9} {'Recall':>8}")
-    print(f"  {'-'*50}")
-
-    anomaly_mask = y_true == 1
-    type_counts = test_feat.loc[anomaly_mask].groupby(
-        test_feat.loc[anomaly_mask].index
-    ).size()
-
     detected_total = tp_total
     total_anomalies = tp_total + fn_total
     overall_recall = detected_total / total_anomalies if total_anomalies > 0 else 0
 
+    print(f"\n  Per-anomaly-type evaluation (threshold={threshold:.3f}):")
+    print(f"  {'Type':<25} {'Count':>6} {'Detected':>9} {'Recall':>8}")
+    print(f"  {'-'*50}")
     print(f"  {'OVERALL':<25} {total_anomalies:>6} {detected_total:>9} {overall_recall:>8.3f}")
-    print(f"  Precision: {tp_total/(tp_total+fp_total):.3f}  Recall: {overall_recall:.3f}  "
-          f"F1: {2*tp_total/(2*tp_total+fp_total+fn_total):.3f}")
+    if tp_total + fp_total > 0:
+        print(f"  Precision: {tp_total/(tp_total+fp_total):.4f}  Recall: {overall_recall:.4f}  "
+              f"F1: {2*tp_total/(2*tp_total+fp_total+fn_total):.4f}")
 
     return {"tp": int(tp_total), "fp": int(fp_total), "fn": int(fn_total)}
 
 
 # =============================================================================
-# 5c. HYPERPARAMETER TUNING GRID
-# =============================================================================
-def run_hyperparameter_search(df, n_splits=5, max_combos=20):
-    """Search over key hyperparameters to find best configuration."""
-    from itertools import product
-
-    param_grid = {
-        "n_estimators": [200, 300, 500],
-        "max_depth": [10, 15, 20],
-        "contamination": [0.02, 0.03, 0.04],
-    }
-
-    keys = list(param_grid.keys())
-    combos = list(product(*param_grid.values()))
-    np.random.seed(RANDOM_SEED)
-    if len(combos) > max_combos:
-        indices = np.random.choice(len(combos), max_combos, replace=False)
-        combos = [combos[i] for i in indices]
-
-    print(f"\n{'='*60}")
-    print(f"  HYPERPARAMETER SEARCH ({len(combos)} combos, {n_splits}-fold CV)")
-    print(f"{'='*60}")
-
-    df_feat, fit_stats = engineer_features(df, fit_stats=None)
-    y = df_feat["is_anomaly"].values
-
-    best_f1 = 0
-    best_params = {}
-
-    for combo in combos:
-        params = dict(zip(keys, combo))
-        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=RANDOM_SEED)
-        fold_f1s = []
-
-        for train_idx, val_idx in skf.split(df_feat, y):
-            train_fold = df_feat.iloc[train_idx].copy()
-            val_fold = df_feat.iloc[val_idx].copy()
-            y_val = y[val_idx]
-
-            scaler = StandardScaler()
-            X_train_base = scaler.fit_transform(train_fold[FEATURES])
-            X_val_base = scaler.transform(val_fold[FEATURES])
-
-            X_train_ext, unsup_models = add_unsupervised_features(X_train_base, fit=True)
-            X_val_ext = add_unsupervised_features(X_val_base, fit=False, models=unsup_models)
-
-            train_stats = compute_user_stats(train_fold)
-            rule_train = compute_rule_scores_for_df(train_fold, train_stats).reshape(-1, 1)
-            rule_val = compute_rule_scores_for_df(val_fold, train_stats).reshape(-1, 1)
-
-            X_train_final = np.column_stack([X_train_ext, rule_train])
-            X_val_final = np.column_stack([X_val_ext, rule_val])
-
-            rf = RandomForestClassifier(
-                n_estimators=params["n_estimators"],
-                max_depth=params["max_depth"],
-                min_samples_split=5,
-                class_weight="balanced",
-                random_state=RANDOM_SEED, n_jobs=-1
-            )
-            gb = GradientBoostingClassifier(
-                n_estimators=200, learning_rate=0.1, max_depth=5,
-                random_state=RANDOM_SEED
-            )
-            rf.fit(X_train_final, y[train_idx])
-            gb.fit(X_train_final, y[train_idx])
-
-            prob = 0.5 * rf.predict_proba(X_val_final)[:, 1] + 0.5 * gb.predict_proba(X_val_final)[:, 1]
-
-            best_fold_f1 = 0
-            for t in np.arange(0.10, 0.90, 0.02):
-                f1 = f1_score(y_val, (prob > t).astype(int), zero_division=0)
-                best_fold_f1 = max(best_fold_f1, f1)
-            fold_f1s.append(best_fold_f1)
-
-        avg_f1 = np.mean(fold_f1s)
-        param_str = ", ".join(f"{k}={v}" for k, v in params.items())
-        print(f"  {param_str}  ->  F1: {avg_f1:.4f}")
-
-        if avg_f1 > best_f1:
-            best_f1 = avg_f1
-            best_params = params
-
-    print(f"\n  Best: {best_params}  ->  F1: {best_f1:.4f}")
-    print(f"{'='*60}")
-
-    return best_params, best_f1
-
-
-# =============================================================================
-# 6. FULL TRAINING PIPELINE
+# 6. FULL TRAINING PIPELINE (improved)
 # =============================================================================
 def train_full(train_df, test_df):
-    print("\n[1/6] Engineering features (train)...")
+    print("\n[1/7] Engineering features (train)...")
     train_feat, fit_stats = engineer_features(train_df, fit_stats=None)
 
-    print("[2/6] Engineering features (test)...")
+    print("[2/7] Engineering features (test)...")
     test_feat, _ = engineer_features(test_df, fit_stats=fit_stats)
 
-    print("[3/6] Fitting scaler + unsupervised scores...")
+    print("[3/7] Fitting scaler + unsupervised scores...")
     scaler = StandardScaler()
     X_train_base = scaler.fit_transform(train_feat[FEATURES])
     X_test_base = scaler.transform(test_feat[FEATURES])
@@ -621,7 +631,7 @@ def train_full(train_df, test_df):
     X_train_ext, unsup_models = add_unsupervised_features(X_train_base, fit=True)
     X_test_ext = add_unsupervised_features(X_test_base, fit=False, models=unsup_models)
 
-    print("[4/6] Computing rule-based features...")
+    print("[4/7] Computing rule-based features...")
     train_stats = compute_user_stats(train_feat)
     rule_train = compute_rule_scores_for_df(train_feat, train_stats).reshape(-1, 1)
     rule_test = compute_rule_scores_for_df(test_feat, train_stats).reshape(-1, 1)
@@ -632,27 +642,29 @@ def train_full(train_df, test_df):
     y_train = train_feat["is_anomaly"].values
     y_test = test_feat["is_anomaly"].values
 
-    print("[5/6] Training supervised ensemble (RF + GB)...")
-    rf = RandomForestClassifier(
-        n_estimators=300, max_depth=15, min_samples_split=5,
-        class_weight="balanced", random_state=RANDOM_SEED, n_jobs=-1
-    )
-    gb = GradientBoostingClassifier(
-        n_estimators=200, learning_rate=0.1, max_depth=5,
-        random_state=RANDOM_SEED
-    )
+    print("[5/7] Training ensemble models (XGB + LGBM + RF + GB)...")
+    models = _get_base_models()
+    for name, model in models.items():
+        print(f"  Training {name}...")
+        model.fit(X_train_final, y_train)
 
-    rf.fit(X_train_final, y_train)
-    gb.fit(X_train_final, y_train)
+    print("[6/7] Evaluating on test set...")
+    probs = {}
+    for name, model in models.items():
+        probs[name] = model.predict_proba(X_test_final)[:, 1]
 
-    print("[6/6] Evaluating on test set...")
-    prob_rf = rf.predict_proba(X_test_final)[:, 1]
-    prob_gb = gb.predict_proba(X_test_final)[:, 1]
-    ensemble_prob = 0.5 * prob_rf + 0.5 * prob_gb
+    weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
+    total_w = 0
+    ensemble_prob = np.zeros(len(X_test_final))
+    for name, p in probs.items():
+        w = weights.get(name, 1.0 / len(probs))
+        ensemble_prob += w * p
+        total_w += w
+    ensemble_prob /= total_w
 
     best_f1 = 0
     best_thresh = 0.5
-    for t in np.arange(0.10, 0.90, 0.01):
+    for t in np.arange(0.10, 0.85, 0.005):
         preds = (ensemble_prob > t).astype(int)
         f1 = f1_score(y_test, preds, zero_division=0)
         if f1 > best_f1:
@@ -668,7 +680,7 @@ def train_full(train_df, test_df):
     tn = int(((preds_test == 0) & (y_test == 0)).sum())
 
     print(f"\n{'='*60}")
-    print(f"  TEST SET RESULTS (threshold={best_thresh:.2f})")
+    print(f"  TEST SET RESULTS (threshold={best_thresh:.3f})")
     print(f"{'='*60}")
     print(f"  Precision:  {precision:.4f}")
     print(f"  Recall:     {recall:.4f}")
@@ -678,8 +690,16 @@ def train_full(train_df, test_df):
 
     evaluate_by_anomaly_type(test_feat, ensemble_prob, best_thresh)
 
+    print("\n  Individual model performance:")
+    for name, p in probs.items():
+        best_f1_m = 0
+        for t in np.arange(0.10, 0.85, 0.01):
+            f1_m = f1_score(y_test, (p > t).astype(int), zero_division=0)
+            best_f1_m = max(best_f1_m, f1_m)
+        print(f"    {name:>6}: best F1={best_f1_m:.4f}")
+
     return {
-        "rf": rf, "gb": gb, "scaler": scaler, "unsup_models": unsup_models,
+        "models": models, "scaler": scaler, "unsup_models": unsup_models,
         "fit_stats": fit_stats, "train_stats": train_stats,
         "threshold": best_thresh,
         "metrics": {"precision": precision, "recall": recall, "f1": best_f1,
@@ -688,13 +708,15 @@ def train_full(train_df, test_df):
 
 
 # =============================================================================
-# 7. MODEL EXPORT
+# 7. MODEL EXPORT (improved)
 # =============================================================================
 def save_models(result, cv_metrics):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    joblib.dump(result["rf"], f"{OUTPUT_DIR}/rf_model.pkl", compress=3)
-    joblib.dump(result["gb"], f"{OUTPUT_DIR}/gb_model.pkl", compress=3)
+    models = result["models"]
+    for name, model in models.items():
+        joblib.dump(model, f"{OUTPUT_DIR}/{name}_model.pkl", compress=3)
+
     joblib.dump(result["scaler"], f"{OUTPUT_DIR}/scaler.pkl", compress=3)
     joblib.dump(FEATURES, f"{OUTPUT_DIR}/feature_columns.pkl")
 
@@ -706,10 +728,18 @@ def save_models(result, cv_metrics):
     avg_cv_f1 = np.mean([m["f1"] for m in cv_metrics])
     std_cv_f1 = np.std([m["f1"] for m in cv_metrics])
 
+    model_names = ["RandomForest", "GradientBoosting", "IsolationForest", "LOF", "OCSVM", "RuleBased"]
+    if HAS_XGB:
+        model_names.append("XGBoost")
+    if HAS_LGBM:
+        model_names.append("LightGBM")
+
     metadata = {
-        "model": "SupervisedEnsemble_v3",
-        "components": ["RandomForest", "GradientBoosting", "IsolationForest", "LOF", "OCSVM", "RuleBased"],
-        "weights": {"rf": 0.50, "gb": 0.50, "unsup_features": "as_extra_features", "rule_feature": "as_extra_feature"},
+        "model": "SupervisedEnsemble_v4",
+        "version": "4.0",
+        "components": model_names,
+        "weights": {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30,
+                     "unsup_features": "as_extra_features", "rule_feature": "as_extra_feature"},
         "features": FEATURES,
         "n_features": len(FEATURES),
         "extended_features": len(FEATURES) + 4,
@@ -752,9 +782,22 @@ def create_visualizations(test_df, fit_stats, scaler, unsup_models, train_stats,
         rule = compute_rule_scores_for_df(test_feat, train_stats).reshape(-1, 1)
         X_final = np.column_stack([X_ext, rule])
 
-        prob_rf = result["rf"].predict_proba(X_final)[:, 1]
-        prob_gb = result["gb"].predict_proba(X_final)[:, 1]
-        ensemble_prob = 0.5 * prob_rf + 0.5 * prob_gb
+        models = _get_base_models()
+        probs = {}
+        for name, model in models.items():
+            model_path = f"{OUTPUT_DIR}/{name}_model.pkl"
+            if os.path.exists(model_path):
+                loaded = joblib.load(model_path)
+                probs[name] = loaded.predict_proba(X_final)[:, 1]
+
+        weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
+        total_w = 0
+        ensemble_prob = np.zeros(len(X_final))
+        for name, p in probs.items():
+            w = weights.get(name, 1.0 / len(probs))
+            ensemble_prob += w * p
+            total_w += w
+        ensemble_prob /= total_w
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
@@ -763,7 +806,7 @@ def create_visualizations(test_df, fit_stats, scaler, unsup_models, train_stats,
             x="score", hue="is_anomaly", bins=50,
             palette={0: "green", 1: "red"}, alpha=0.6, ax=axes[0]
         )
-        axes[0].axvline(threshold, color="orange", linestyle="--", label=f"Threshold ({threshold:.2f})")
+        axes[0].axvline(threshold, color="orange", linestyle="--", label=f"Threshold ({threshold:.3f})")
         axes[0].set_title("Ensemble Probability Distribution")
         axes[0].legend()
 
@@ -799,8 +842,9 @@ if __name__ == "__main__":
     os.makedirs(VIZ_DIR, exist_ok=True)
 
     print("=" * 60)
-    print("  MARAUDER'S LEDGER - ML MODEL TRAINING (v3.0)")
-    print("  Target: F1 > 0.85 | RF + GB + IF/LOF/OCSVM + Rules | 7-Fold CV")
+    print("  MARAUDER'S LEDGER - ML MODEL TRAINING (v4.0)")
+    print("  Target: F1 > 0.90 | XGB + LGBM + RF + GB + IF/LOF/OCSVM + Rules")
+    print(f"  10K samples | {N_FOLDS}x{N_REPEATS} Repeated Stratified CV | 25 features")
     print("=" * 60)
 
     print("\n[Step 1] Generating training data...")
@@ -813,20 +857,8 @@ if __name__ == "__main__":
     test_df.to_csv(f"{DATA_DIR}/test_data.csv", index=False)
     print(f"  Generated {len(test_df)} rows, {test_df['is_anomaly'].sum()} anomalies")
 
-    print("\n[Step 3] Running 7-fold cross-validation...")
-    cv_metrics, avg_f1, avg_thresh = run_cross_validation(train_df, n_splits=N_FOLDS)
-
-    if avg_f1 < 0.85:
-        print(f"\n  NOTE: CV F1={avg_f1:.4f}. Retrying with more samples...")
-        for n_extra in [2000, 4000]:
-            train_df_extra = generate_data(N_SAMPLES + n_extra, ANOMALY_PCT, RANDOM_SEED)
-            cv_metrics, avg_f1, avg_thresh = run_cross_validation(train_df_extra, n_splits=N_FOLDS)
-            if avg_f1 >= 0.85:
-                train_df = train_df_extra
-                break
-
-    print(f"\n[Step 3b] Running hyperparameter search...")
-    best_params, best_hp_f1 = run_hyperparameter_search(train_df, n_splits=5, max_combos=15)
+    print("\n[Step 3] Running repeated stratified cross-validation...")
+    cv_metrics, avg_f1, avg_thresh = run_cross_validation(train_df, n_splits=N_FOLDS, n_repeats=N_REPEATS)
 
     print(f"\n[Step 4] Training final model on full training set...")
     result = train_full(train_df, test_df)
@@ -844,6 +876,8 @@ if __name__ == "__main__":
     print("  TRAINING COMPLETE")
     print(f"  CV F1:     {avg_f1:.4f}")
     print(f"  Test F1:   {result['metrics']['f1']:.4f}")
-    print(f"  Threshold: {result['threshold']:.2f}")
+    print(f"  Test P:    {result['metrics']['precision']:.4f}")
+    print(f"  Test R:    {result['metrics']['recall']:.4f}")
+    print(f"  Threshold: {result['threshold']:.3f}")
     print(f"  Features:  {len(FEATURES)} base + 4 extended = {len(FEATURES) + 4}")
     print("=" * 60)

@@ -1,24 +1,33 @@
 #!/usr/bin/env python3
 """
-Marauder's Ledger - Inference Code (v3.0)
+Marauder's Ledger - Inference Code (v4.0)
 ==========================================
-Load pre-trained supervised ensemble (RF + GB) and run anomaly detection.
+Load pre-trained ensemble (XGB + LGBM + RF + GB) and run anomaly detection.
 Designed for FastAPI /analyze endpoint integration.
 """
 
 import joblib
 import pandas as pd
 import numpy as np
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
 import json
 import os
+
+try:
+    from xgboost import XGBClassifier
+except ImportError:
+    pass
+
+try:
+    from lightgbm import LGBMClassifier
+except ImportError:
+    pass
 
 # =============================================================================
 # LOAD MODELS (call once at server startup)
 # =============================================================================
 _LOADED = False
-RF_MODEL = None
-GB_MODEL = None
+MODELS = {}
 SCALER = None
 FEATURES = None
 METADATA = None
@@ -28,12 +37,18 @@ TRAIN_STATS = None
 
 
 def load_models(model_dir: str = "models"):
-    """Load all model artifacts. Call once at server startup."""
-    global RF_MODEL, GB_MODEL, SCALER, FEATURES, METADATA
+    global MODELS, SCALER, FEATURES, METADATA
     global UNSUP_MODELS, FIT_STATS, TRAIN_STATS, _LOADED
 
-    RF_MODEL = joblib.load(f"{model_dir}/rf_model.pkl")
-    GB_MODEL = joblib.load(f"{model_dir}/gb_model.pkl")
+    for name in ["rf", "gb", "xgb", "lgbm"]:
+        path = f"{model_dir}/{name}_model.pkl"
+        if os.path.exists(path):
+            MODELS[name] = joblib.load(path)
+
+    if not MODELS:
+        for name in ["rf", "gb"]:
+            MODELS[name] = joblib.load(f"{model_dir}/{name}_model.pkl")
+
     SCALER = joblib.load(f"{model_dir}/scaler.pkl")
     FEATURES = joblib.load(f"{model_dir}/feature_columns.pkl")
 
@@ -52,12 +67,16 @@ def load_models(model_dir: str = "models"):
     else:
         FIT_STATS = {
             "merchant_freq_map": {},
+            "merchant_rarity_map": {},
             "cat_mean_map": {},
+            "cat_std_map": {},
             "global_mean": 100,
             "global_std": 200,
             "cat_stats": [],
             "rolling_mean": 100,
             "rolling_std": 50,
+            "iqr_lower": 0,
+            "iqr_upper": 500,
         }
 
     TRAIN_STATS = {
@@ -69,31 +88,39 @@ def load_models(model_dir: str = "models"):
     }
 
     _LOADED = True
-    threshold = METADATA.get("threshold", 0.57)
-    print(f"Models loaded from '{model_dir}/' (threshold={threshold:.2f})")
+    threshold = METADATA.get("threshold", 0.50)
+    print(f"Models loaded from '{model_dir}/' ({len(MODELS)} models, threshold={threshold:.3f})")
     return threshold
 
 
 # =============================================================================
-# FEATURE ENGINEERING
+# FEATURE ENGINEERING (25 features, must match training)
 # =============================================================================
 def engineer_features(df: pd.DataFrame, fit_stats: Optional[Dict] = None) -> pd.DataFrame:
-    """Compute 16 features. Must match training exactly."""
     df = df.copy()
 
     df["amount_log"] = np.log1p(df["amount"])
     df["is_unusual_hour"] = (df["hour"].between(2, 5)).astype(int)
     df["is_weekend"] = (df["day"] >= 5).astype(int)
+    df["is_night"] = (df["hour"].between(0, 6)).astype(int)
 
     if fit_stats and fit_stats.get("merchant_freq_map"):
         mfm = fit_stats["merchant_freq_map"]
         df["merchant_freq"] = df["merchant"].map(mfm).fillna(1).astype(int)
+        df["merchant_rarity"] = df["merchant"].map(
+            fit_stats.get("merchant_rarity_map", {})
+        ).fillna(0.5)
         df["category_mean_amount"] = df["category"].map(
             fit_stats.get("cat_mean_map", {})
         ).fillna(fit_stats.get("global_mean", 100))
+        df["category_std_amount"] = df["category"].map(
+            fit_stats.get("cat_std_map", {})
+        ).fillna(fit_stats.get("global_std", 200))
     else:
         df["merchant_freq"] = df.groupby("merchant")["merchant"].transform("count")
+        df["merchant_rarity"] = 0.5
         df["category_mean_amount"] = df.groupby("category")["amount"].transform("mean")
+        df["category_std_amount"] = df.groupby("category")["amount"].transform("std").fillna(1)
 
     df["hour_sin"] = np.sin(2 * np.pi * df["hour"] / 24)
     df["hour_cos"] = np.cos(2 * np.pi * df["hour"] / 24)
@@ -137,10 +164,25 @@ def engineer_features(df: pd.DataFrame, fit_stats: Optional[Dict] = None) -> pd.
         0.5 * df["amount_zscore"].clip(-3, 3)
     )
 
+    # New features
+    df["amount_percentile"] = df["amount"].rank(pct=True)
+    df["amount_roundedness"] = (df["amount"] % 100 == 0).astype(int) | \
+                                ((df["amount"] % 50 == 0) & (df["amount"] > 100)).astype(int)
+
+    iqr_lower = fit_stats.get("iqr_lower", 0) if fit_stats else df["amount"].quantile(0.25) - 1.5 * (df["amount"].quantile(0.75) - df["amount"].quantile(0.25))
+    iqr_upper = fit_stats.get("iqr_upper", df["amount"].quantile(0.75) + 300) if fit_stats else df["amount"].quantile(0.75) + 1.5 * (df["amount"].quantile(0.75) - df["amount"].quantile(0.25))
+    df["is_amount_outlier_iqr"] = ((df["amount"] < iqr_lower) | (df["amount"] > iqr_upper)).astype(int)
+
+    df["txn_velocity_1h"] = 1
+    df["amount_to_global_mean_ratio"] = df["amount"] / fit_stats["global_mean"] if fit_stats else df["amount"] / df["amount"].mean()
+    df["category_merchant_diversity"] = df.groupby("category")["merchant"].transform("nunique")
+
+    # Clip and clean
     df["amount_zscore"] = df["amount_zscore"].clip(-5, 5)
     df["amount_cat_ratio"] = df["amount_cat_ratio"].clip(0, 50)
     df["amount_deviation_from_rolling"] = df["amount_deviation_from_rolling"].clip(-5, 5)
     df["merchant_risk_score"] = df["merchant_risk_score"].clip(0, 5)
+    df["amount_to_global_mean_ratio"] = df["amount_to_global_mean_ratio"].clip(0, 50)
 
     for col in FEATURES:
         if col not in df.columns:
@@ -161,7 +203,6 @@ def _norm(s):
 
 
 def add_unsupervised_features(X_scaled, models):
-    """Add unsupervised model scores as extra features."""
     iso, lof, ocsvm = models
     iso_scores = _norm(-iso.decision_function(X_scaled))
     lof_scores = _norm(-lof.decision_function(X_scaled))
@@ -176,17 +217,21 @@ def _compute_rule_score(row, stats):
     score = 0.0
     cat_mean = stats.get("category_means", {}).get(row.get("category", ""), row.get("amount", 0))
     if row.get("amount", 0) > 3 * cat_mean:
-        score += 0.30
+        score += 0.25
     if 2 <= row.get("hour", 12) <= 5:
-        score += 0.20
+        score += 0.15
     if stats.get("merchant_counts", {}).get(row.get("merchant", ""), 0) < 3:
         score += 0.15
     rm = stats.get("rolling_mean_7d", row.get("amount", 0))
     rs = stats.get("rolling_std_7d", 1)
     if row.get("amount", 0) > rm + 2 * rs:
-        score += 0.25
-    if abs(row.get("amount", 0) - stats.get("last_24h_avg", 0)) < 1.0:
+        score += 0.20
+    if row.get("amount", 0) > rm + 3 * rs:
+        score += 0.15
+    if stats.get("merchant_counts", {}).get(row.get("merchant", ""), 0) == 0:
         score += 0.10
+    if row.get("amount", 0) % 100 == 0 and row.get("amount", 0) >= 500:
+        score += 0.05
     return min(score, 1.0)
 
 
@@ -220,18 +265,11 @@ def _get_triggered_rules(row, stats):
 # MAIN INFERENCE FUNCTION
 # =============================================================================
 def detect_anomalies(transactions: List[Dict], threshold: float = None) -> List[Dict]:
-    """
-    Main inference function.
-    
-    Input:  list of dicts with keys: amount, category, merchant, hour, day
-            Optional: timestamp (datetime)
-    Output: same list with added fields: probability, is_anomaly, severity, triggered_rules
-    """
     if not _LOADED:
-        t = load_models()
+        load_models()
 
     if threshold is None:
-        threshold = METADATA.get("threshold", 0.57)
+        threshold = METADATA.get("threshold", 0.50)
 
     df = pd.DataFrame(transactions)
 
@@ -249,9 +287,18 @@ def detect_anomalies(transactions: List[Dict], threshold: float = None) -> List[
 
     X_final = np.column_stack([X_ext, rule_scores.reshape(-1, 1)])
 
-    prob_rf = RF_MODEL.predict_proba(X_final)[:, 1]
-    prob_gb = GB_MODEL.predict_proba(X_final)[:, 1]
-    ensemble_prob = 0.5 * prob_rf + 0.5 * prob_gb
+    probs = {}
+    for name, model in MODELS.items():
+        probs[name] = model.predict_proba(X_final)[:, 1]
+
+    weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
+    total_w = 0
+    ensemble_prob = np.zeros(len(X_final))
+    for name, p in probs.items():
+        w = weights.get(name, 1.0 / len(probs))
+        ensemble_prob += w * p
+        total_w += w
+    ensemble_prob /= total_w
 
     results = []
     for i, row in df.iterrows():
@@ -291,9 +338,13 @@ if __name__ == "__main__":
          "timestamp": pd.Timestamp("2026-06-10 19:30:00")},
         {"amount": 2499, "category": "Shopping", "merchant": "Amazon", "hour": 20, "day": 3,
          "timestamp": pd.Timestamp("2026-06-10 20:15:00")},
+        {"amount": 5000, "category": "Bills", "merchant": "Suspicious Shop", "hour": 3, "day": 1,
+         "timestamp": pd.Timestamp("2026-06-10 03:45:00")},
+        {"amount": 10000, "category": "Food", "merchant": "Crypto Exchange", "hour": 2, "day": 0,
+         "timestamp": pd.Timestamp("2026-06-10 02:10:00")},
     ]
 
-    print(f"\nRunning inference on 5 samples (threshold={threshold:.2f})...")
+    print(f"\nRunning inference on 7 samples (threshold={threshold:.3f})...")
     results = detect_anomalies(sample)
 
     for r in results:
