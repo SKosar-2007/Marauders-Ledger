@@ -1,0 +1,327 @@
+{
+  "model": "SupervisedEnsemble_v4",
+  "version": "4.0",
+  "components": [
+    "RandomForest",
+    "GradientBoosting",
+    "IsolationForest",
+    "LOF",
+    "OCSVM",
+    "RuleBased",
+    "XGBoost",
+    "LightGBM"
+  ],
+  "weights": {
+    "rf": 0.2,
+    "gb": 0.2,
+    "xgb": 0.3,
+    "lgbm": 0.3,
+    "unsup_features": "as_extra_features",
+    "rule_feature": "as_extra_feature"
+  },
+  "features": [
+    "amount",
+    "amount_log",
+    "hour",
+    "is_unusual_hour",
+    "is_weekend",
+    "merchant_freq",
+    "category_mean_amount",
+    "hour_sin",
+    "hour_cos",
+    "amount_zscore",
+    "amount_cat_ratio",
+    "txn_frequency_24h",
+    "days_since_last_txn",
+    "is_amount_extreme",
+    "amount_deviation_from_rolling",
+    "merchant_risk_score",
+    "amount_percentile",
+    "merchant_rarity",
+    "is_night",
+    "amount_roundedness",
+    "category_std_amount",
+    "is_amount_outlier_iqr",
+    "txn_velocity_1h",
+    "amount_to_global_mean_ratio",
+    "category_merchant_diversity"
+  ],
+  "n_features": 25,
+  "extended_features": 29,
+  "threshold": 0.7750000000000006,
+  "contamination": 0.03,
+  "trained_samples": 10000,
+  "cv_f1_mean": 0.952,
+  "cv_f1_std": 0.0347,
+  "test_metrics": {
+    "precision": 0.9811320754716981,
+    "recall": 0.8666666666666667,
+    "f1": 0.9203539823008849,
+    "tp": 52,
+    "fp": 1,
+    "fn": 8,
+    "tn": 1879
+  },
+  "cv_folds": [
+    {
+      "fold": 1,
+      "threshold": 0.3250000000000002,
+      "precision": 1.0,
+      "recall": 0.9333333333333333,
+      "f1": 0.9655172413793104,
+      "tp": 28,
+      "fp": 0,
+      "fn": 2,
+      "tn": 940
+    },
+    {
+      "fold": 2,
+      "threshold": 0.5650000000000004,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9473684210526315,
+      "tp": 27,
+      "fp": 0,
+      "fn": 3,
+      "tn": 940
+    },
+    {
+      "fold": 3,
+      "threshold": 0.3200000000000002,
+      "precision": 0.9655172413793104,
+      "recall": 0.9333333333333333,
+      "f1": 0.9491525423728814,
+      "tp": 28,
+      "fp": 1,
+      "fn": 2,
+      "tn": 939
+    },
+    {
+      "fold": 4,
+      "threshold": 0.2150000000000001,
+      "precision": 0.9230769230769231,
+      "recall": 0.8,
+      "f1": 0.8571428571428571,
+      "tp": 24,
+      "fp": 2,
+      "fn": 6,
+      "tn": 938
+    },
+    {
+      "fold": 5,
+      "threshold": 0.5100000000000003,
+      "precision": 0.9666666666666667,
+      "recall": 0.9666666666666667,
+      "f1": 0.9666666666666667,
+      "tp": 29,
+      "fp": 1,
+      "fn": 1,
+      "tn": 939
+    },
+    {
+      "fold": 6,
+      "threshold": 0.5200000000000004,
+      "precision": 0.9666666666666667,
+      "recall": 0.9666666666666667,
+      "f1": 0.9666666666666667,
+      "tp": 29,
+      "fp": 1,
+      "fn": 1,
+      "tn": 939
+    },
+    {
+      "fold": 7,
+      "threshold": 0.40500000000000025,
+      "precision": 1.0,
+      "recall": 0.9333333333333333,
+      "f1": 0.9655172413793104,
+      "tp": 28,
+      "fp": 0,
+      "fn": 2,
+      "tn": 940
+    },
+    {
+      "fold": 8,
+      "threshold": 0.23000000000000012,
+      "precision": 1.0,
+      "recall": 0.9333333333333333,
+      "f1": 0.9655172413793104,
+      "tp": 28,
+      "fp": 0,
+      "fn": 2,
+      "tn": 940
+    },
+    {
+      "fold": 9,
+      "threshold": 0.7050000000000005,
+      "precision": 1.0,
+      "recall": 0.9666666666666667,
+      "f1": 0.9830508474576272,
+      "tp": 29,
+      "fp": 0,
+      "fn": 1,
+      "tn": 940
+    },
+    {
+      "fold": 10,
+      "threshold": 0.31500000000000017,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9473684210526315,
+      "tp": 27,
+      "fp": 0,
+      "fn": 3,
+      "tn": 940
+    },
+    {
+      "fold": 11,
+      "threshold": 0.3600000000000002,
+      "precision": 0.9642857142857143,
+      "recall": 0.9,
+      "f1": 0.9310344827586207,
+      "tp": 27,
+      "fp": 1,
+      "fn": 3,
+      "tn": 939
+    },
+    {
+      "fold": 12,
+      "threshold": 0.6850000000000005,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "tn": 940
+    },
+    {
+      "fold": 13,
+      "threshold": 0.42000000000000026,
+      "precision": 1.0,
+      "recall": 0.8666666666666667,
+      "f1": 0.9285714285714286,
+      "tp": 26,
+      "fp": 0,
+      "fn": 4,
+      "tn": 940
+    },
+    {
+      "fold": 14,
+      "threshold": 0.4750000000000003,
+      "precision": 1.0,
+      "recall": 0.8333333333333334,
+      "f1": 0.9090909090909091,
+      "tp": 25,
+      "fp": 0,
+      "fn": 5,
+      "tn": 940
+    },
+    {
+      "fold": 15,
+      "threshold": 0.2650000000000001,
+      "precision": 1.0,
+      "recall": 0.9333333333333333,
+      "f1": 0.9655172413793104,
+      "tp": 28,
+      "fp": 0,
+      "fn": 2,
+      "tn": 940
+    },
+    {
+      "fold": 16,
+      "threshold": 0.4400000000000003,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "tn": 940
+    },
+    {
+      "fold": 17,
+      "threshold": 0.40000000000000024,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9473684210526315,
+      "tp": 27,
+      "fp": 0,
+      "fn": 3,
+      "tn": 940
+    },
+    {
+      "fold": 18,
+      "threshold": 0.22500000000000012,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "tn": 940
+    },
+    {
+      "fold": 19,
+      "threshold": 0.41000000000000025,
+      "precision": 1.0,
+      "recall": 0.9,
+      "f1": 0.9473684210526315,
+      "tp": 27,
+      "fp": 0,
+      "fn": 3,
+      "tn": 940
+    },
+    {
+      "fold": 20,
+      "threshold": 0.6350000000000005,
+      "precision": 0.9285714285714286,
+      "recall": 0.8666666666666667,
+      "f1": 0.896551724137931,
+      "tp": 26,
+      "fp": 2,
+      "fn": 4,
+      "tn": 938
+    }
+  ],
+  "fit_stats_keys": [
+    "merchant_freq_map",
+    "merchant_rarity_map",
+    "cat_stats",
+    "cat_mean_map",
+    "cat_std_map",
+    "global_mean",
+    "global_std",
+    "iqr_lower",
+    "iqr_upper",
+    "rolling_mean",
+    "rolling_std"
+  ],
+  "category_params": {
+    "Food": {
+      "mean": 150,
+      "std": 80,
+      "weight": 0.35
+    },
+    "Shopping": {
+      "mean": 500,
+      "std": 300,
+      "weight": 0.25
+    },
+    "Bills": {
+      "mean": 800,
+      "std": 400,
+      "weight": 0.15
+    },
+    "Travel": {
+      "mean": 300,
+      "std": 200,
+      "weight": 0.1
+    },
+    "Entertainment": {
+      "mean": 200,
+      "std": 100,
+      "weight": 0.15
+    }
+  }
+}
