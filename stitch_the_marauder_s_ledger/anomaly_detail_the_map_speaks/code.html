@@ -1,0 +1,190 @@
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><style>@layer base{html,body{margin:0;padding:0;background-color:#f5e6c8;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}.parchment-edge{mask-image:linear-gradient(to bottom,black 95%,transparent 100%);}.gold-divider{height:4px;background:linear-gradient(90deg,transparent, #735c00 50%,transparent);position:relative;}.gold-divider::after{content:'◈';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#735c00;background:#f5e6c8;padding:0 8px;font-size:12px;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={theme:{extend:{"colors":{"surface":"#fff8f2","error":"#ba1a1a","primary-fixed":"#ffdbce","tertiary-container":"#231c09","inverse-on-surface":"#ffefd2","secondary":"#735c00","surface-container-highest":"#f4e0bb","inverse-surface":"#3a2f15","on-tertiary":"#ffffff","on-error-container":"#93000a","secondary-fixed-dim":"#e9c349","on-secondary":"#ffffff","on-tertiary-fixed":"#221b08","on-tertiary-container":"#8f846a","on-tertiary-fixed-variant":"#4f4630","surface-container-high":"#fae6c0","outline-variant":"#d3c3be","tertiary":"#040200","on-primary":"#ffffff","error-container":"#ffdad6","surface-tint":"#74584e","on-primary-fixed":"#2a170f","primary-fixed-dim":"#e3bfb2","on-error":"#ffffff","tertiary-fixed-dim":"#d3c5a8","surface-bright":"#fff8f2","surface-dim":"#ebd8b3","on-primary-fixed-variant":"#5a4137","on-secondary-fixed-variant":"#574500","background":"#fff8f2","primary-container":"#2c1810","outline":"#827470","on-surface":"#241a04","on-background":"#241a04","on-secondary-fixed":"#241a00","inverse-primary":"#e3bfb2","on-secondary-container":"#745c00","on-primary-container":"#9e7e73","secondary-fixed":"#ffe088","on-surface-variant":"#504440","surface-container-lowest":"#ffffff","primary":"#090100","surface-container-low":"#fff2dd","surface-container":"#ffecc7","tertiary-fixed":"#f0e1c3","secondary-container":"#fed65b","surface-variant":"#f4e0bb"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"unit":"8px","margin-desktop":"40px","margin-mobile":"16px","container-max":"1200px","gutter":"24px"},"fontFamily":{"headline-lg-mobile":["Libre Caslon Text"],"label-sm":["JetBrains Mono"],"display-lg":["Libre Caslon Text"],"body-lg":["Literata"],"headline-lg":["Libre Caslon Text"],"body-md":["Literata"],"data-mono":["JetBrains Mono"],"title-md":["Libre Caslon Text"]},"fontSize":{"headline-lg-mobile":["28px",{"lineHeight":"36px","fontWeight":"700"}],"label-sm":["12px",{"lineHeight":"16px","fontWeight":"700"}],"display-lg":["48px",{"lineHeight":"56px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["18px",{"lineHeight":"28px","fontWeight":"400"}],"headline-lg":["32px",{"lineHeight":"40px","fontWeight":"700"}],"body-md":["16px",{"lineHeight":"24px","fontWeight":"400"}],"data-mono":["14px",{"lineHeight":"20px","letterSpacing":"0.05em","fontWeight":"500"}],"title-md":["20px",{"lineHeight":"28px","fontWeight":"600"}]}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..900&family=Libre+Caslon+Text:wght@100..900&family=Literata:wght@100..900&display=swap" rel="stylesheet"/></head><body class="font-body-md text-on-surface"><header class="fixed top-0 w-full z-50 bg-[#f5e6c8]/90 backdrop-blur-sm shadow-[0_4px_12px_rgba(44,24,16,0.08)]"><div class="h-20 max-w-container-max mx-auto px-margin-mobile lg:px-margin-desktop flex items-center justify-between"><div class="flex flex-col"><span class="font-headline-lg text-headline-lg tracking-widest text-primary uppercase">The Marauder's Ledger</span><span class="font-label-sm text-label-sm text-secondary italic -mt-1 tracking-tighter">I solemnly swear that I am up to no good</span></div><nav class="flex items-center gap-gutter" data-active-classes="text-secondary border-b-2 border-secondary"><a class="font-title-md text-body-md text-on-surface-variant hover:text-secondary transition-all px-2 py-1" data-path="landing" href="#">Landing</a><a class="font-title-md text-body-md text-on-surface-variant hover:text-secondary transition-all px-2 py-1" data-path="dashboard" href="#">Dashboard</a><a aria-current="page" class="font-title-md transition-all px-2 py-1 text-secondary border-b-2 border-secondary" data-path="mischief-list" href="#">Mischief List</a><div class="ml-4 w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></nav></div><div class="gold-divider w-full"></div></header><main class="w-full pt-20 px-margin-mobile lg:px-margin-desktop max-w-container-max mx-auto"><div class="flex flex-col w-full">
+<div class="relative bg-surface-container-highest rounded-xl p-8 mb-gutter parchment-edge shadow-md">
+<div class="absolute inset-0 rounded-xl ring-1 ring-inset ring-secondary/20 pointer-events-none"></div>
+<div class="absolute left-6 top-8 bottom-8 w-[2px] bg-error/40 pointer-events-none hidden md:block"></div>
+<div class="md:pl-10">
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6">
+<div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest block mb-2">Merchant Identity</span>
+<h1 class="font-display-lg text-display-lg text-on-surface">Borgin and Burkes</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Knockturn Alley, London</p>
+</div>
+<div class="mt-4 md:mt-0 text-left md:text-right">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest block mb-2">Transacted Value</span>
+<div class="font-data-mono text-headline-lg text-secondary">1,450.00 G</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">October 31, 1981 - 23:15</p>
+</div>
+</div>
+<div class="flex flex-wrap gap-4 mt-8">
+<button class="bg-secondary text-on-secondary hover:bg-secondary/90 transition-transform duration-300 transform hover:scale-105 active:scale-95 px-6 py-3 rounded-full flex items-center gap-2 shadow-sm relative overflow-hidden group">
+<span class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]"></span>
+<span class="material-symbols-outlined text-[20px]">verified</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest">Mark Valid</span>
+</button>
+<button class="bg-transparent text-secondary ring-1 ring-secondary hover:bg-secondary/10 transition-colors px-6 py-3 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">block</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest">Confirm Mischief</span>
+</button>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter mb-gutter">
+<div class="bg-surface-container rounded-lg p-6 flex flex-col items-center justify-center relative parchment-edge">
+<div class="absolute inset-0 rounded-lg ring-1 ring-inset ring-secondary/10 pointer-events-none"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest mb-4">Arcane ML Model</span>
+<div class="relative w-32 h-32 flex items-center justify-center">
+<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewbox="0 0 100 100">
+<circle class="stroke-outline-variant/30" cx="50" cy="50" fill="none" r="45" stroke-width="8"></circle>
+<circle class="stroke-error" cx="50" cy="50" fill="none" r="45" stroke-dasharray="283" stroke-dashoffset="28.3" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<span class="font-data-mono text-headline-lg text-error">90%</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4 text-center">High probability of dark artifacts.</p>
+</div>
+<div class="bg-surface-container rounded-lg p-6 flex flex-col items-center justify-center relative parchment-edge">
+<div class="absolute inset-0 rounded-lg ring-1 ring-inset ring-secondary/10 pointer-events-none"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest mb-4">Ministry Ruleset</span>
+<div class="relative w-32 h-32 flex items-center justify-center">
+<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewbox="0 0 100 100">
+<circle class="stroke-outline-variant/30" cx="50" cy="50" fill="none" r="45" stroke-width="8"></circle>
+<circle class="stroke-secondary" cx="50" cy="50" fill="none" r="45" stroke-dasharray="283" stroke-dashoffset="113.2" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<span class="font-data-mono text-headline-lg text-secondary">60%</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4 text-center">Multiple flags on recent activity.</p>
+</div>
+<div class="bg-surface-container rounded-lg p-6 flex flex-col items-center justify-center relative parchment-edge shadow-[0_0_20px_rgba(212,175,55,0.15)]">
+<div class="absolute inset-0 rounded-lg ring-1 ring-inset ring-secondary/30 pointer-events-none"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest mb-4">Final Mischief Score</span>
+<div class="relative w-32 h-32 flex items-center justify-center">
+<svg class="absolute inset-0 w-full h-full transform -rotate-90" viewbox="0 0 100 100">
+<circle class="stroke-outline-variant/30" cx="50" cy="50" fill="none" r="45" stroke-width="8"></circle>
+<circle class="stroke-primary" cx="50" cy="50" fill="none" r="45" stroke-dasharray="283" stroke-dashoffset="42.45" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<span class="font-data-mono text-headline-lg text-primary">85%</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4 text-center font-bold">Requires Immediate Attention</p>
+</div>
+</div>
+<div class="bg-[#faf3e6] rounded-xl p-8 mb-gutter relative shadow-md overflow-hidden parchment-edge">
+<div class="absolute inset-0 rounded-xl ring-1 ring-inset ring-secondary/20 pointer-events-none"></div>
+<div class="absolute left-8 top-0 bottom-0 w-[2px] bg-error/30 pointer-events-none hidden md:block"></div>
+<div class="md:pl-8">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Divination Report</h2>
+<button class="w-12 h-12 rounded-full bg-secondary flex items-center justify-center text-on-secondary hover:bg-secondary/90 transition-transform hover:scale-105 active:scale-95 shadow-sm group" id="play-narration">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="h-8 flex items-center gap-1 mb-6 opacity-0 transition-opacity duration-300" id="waveform-container">
+</div>
+<div class="prose max-w-none">
+<p class="font-body-lg text-body-lg text-on-surface min-h-[150px] italic leading-relaxed" id="typewriter-text"></p>
+</div>
+</div>
+</div>
+<div class="bg-surface-container rounded-xl p-8 mb-gutter parchment-edge relative">
+<div class="absolute inset-0 rounded-xl ring-1 ring-inset ring-secondary/10 pointer-events-none"></div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface mb-6">Tethered Transactions</h2>
+<div class="flex flex-col">
+<div class="grid grid-cols-4 gap-4 pb-2 font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest border-b-[1px] border-outline-variant/30">
+<div class="col-span-2 md:col-span-1">Date</div>
+<div class="hidden md:block">Entity</div>
+<div class="text-right">Amount</div>
+<div class="text-right">Status</div>
+</div>
+<div class="grid grid-cols-4 gap-4 py-4 items-center border-b-[1px] border-outline-variant/20 hover:bg-surface-container-highest/50 transition-colors cursor-pointer group">
+<div class="col-span-2 md:col-span-1 font-body-md text-body-md">Oct 29, 1981</div>
+<div class="hidden md:block font-body-md text-body-md">Ollivanders</div>
+<div class="text-right font-data-mono text-data-mono text-secondary">7.00 G</div>
+<div class="text-right"><span class="inline-block px-3 py-1 rounded-full bg-outline-variant/20 font-label-sm text-label-sm text-on-surface-variant">Cleared</span></div>
+</div>
+<div class="grid grid-cols-4 gap-4 py-4 items-center border-b-[1px] border-outline-variant/20 hover:bg-surface-container-highest/50 transition-colors cursor-pointer group">
+<div class="col-span-2 md:col-span-1 font-body-md text-body-md">Oct 25, 1981</div>
+<div class="hidden md:block font-body-md text-body-md">Flourish and Blotts</div>
+<div class="text-right font-data-mono text-data-mono text-secondary">14.50 G</div>
+<div class="text-right"><span class="inline-block px-3 py-1 rounded-full bg-outline-variant/20 font-label-sm text-label-sm text-on-surface-variant">Cleared</span></div>
+</div>
+<div class="grid grid-cols-4 gap-4 py-4 items-center hover:bg-surface-container-highest/50 transition-colors cursor-pointer group">
+<div class="col-span-2 md:col-span-1 font-body-md text-body-md text-error">Oct 13, 1981</div>
+<div class="hidden md:block font-body-md text-body-md text-error">Unknown Gringotts Vault</div>
+<div class="text-right font-data-mono text-data-mono text-error">500.00 G</div>
+<div class="text-right"><span class="inline-block px-3 py-1 rounded-full bg-error/10 text-error font-label-sm text-label-sm">Investigating</span></div>
+</div>
+</div>
+</div>
+</div>
+<style>
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes waveform {
+    0%, 100% { height: 4px; }
+    50% { height: 24px; }
+  }
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    
+    const narrativeText = "The shadows deepen around this exchange. Our scrying indicates the funds were transferred just hours before the incident at Godric's Hollow. The unusual size of the sum, coupled with the merchant's known unsavory associations, suggests the procurement of items of a highly volatile, perhaps even Unforgivable, nature. The temporal proximity to other flagged events is deeply concerning.";
+    const typewriterEl = document.getElementById('typewriter-text');
+    let i = 0;
+    
+    function typeWriter() {
+      if (i < narrativeText.length) {
+        typewriterEl.innerHTML += narrativeText.charAt(i);
+        i++;
+        setTimeout(typeWriter, 30); 
+      }
+    }
+    
+    
+    setTimeout(typeWriter, 500);
+
+    
+    const playBtn = document.getElementById('play-narration');
+    const waveformContainer = document.getElementById('waveform-container');
+    let isPlaying = false;
+    
+    
+    for(let j=0; j<20; j++) {
+        const bar = document.createElement('div');
+        bar.className = 'w-1 bg-secondary rounded-full h-1 transition-all duration-100';
+        waveformContainer.appendChild(bar);
+    }
+    const bars = waveformContainer.children;
+
+    let animationInterval;
+
+    playBtn.addEventListener('click', () => {
+      isPlaying = !isPlaying;
+      const icon = playBtn.querySelector('span');
+      
+      if (isPlaying) {
+        icon.textContent = 'pause';
+        waveformContainer.classList.remove('opacity-0');
+        
+        animationInterval = setInterval(() => {
+            Array.from(bars).forEach(bar => {
+                const height = Math.random() * 24 + 4;
+                bar.style.height = `${height}px`;
+            });
+        }, 100);
+
+      } else {
+        icon.textContent = 'play_arrow';
+        clearInterval(animationInterval);
+        Array.from(bars).forEach(bar => {
+            bar.style.height = '4px';
+        });
+        setTimeout(() => {
+            waveformContainer.classList.add('opacity-0');
+        }, 300);
+      }
+    });
+  });
+</script></main><footer class="w-full mt-24 pb-12 opacity-60"><div class="gold-divider w-full mb-8 opacity-30"></div><div class="max-w-container-max mx-auto px-margin-mobile lg:px-margin-desktop text-center"><p class="font-body-md text-error italic mb-2 tracking-widest">Moony, Wormtail, Padfoot & Prongs</p><p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-[0.3em]">Est. 1971</p></div></footer></body></html>

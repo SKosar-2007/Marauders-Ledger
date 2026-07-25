@@ -1,0 +1,319 @@
+<!DOCTYPE html><html lang="en" style=""><head></head><body class="font-body-md text-on-surface"><svg aria-hidden="true" class="inline-defs-container" style="position:absolute;width:0;height:0;overflow:hidden"></svg><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><style>@layer base{html,body{margin:0;padding:0;background-color:#f5e6c8;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}.parchment-edge{mask-image:linear-gradient(to bottom,black 95%,transparent 100%);}.gold-divider{height:4px;background:linear-gradient(90deg,transparent, #735c00 50%,transparent);position:relative;}.gold-divider::after{content:'◈';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#735c00;background:#f5e6c8;padding:0 8px;font-size:12px;}
+
+@keyframes trailFade {
+    0% { opacity: 0.8; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.3); }
+}
+
+.footprint-trail-dot {
+    animation: trailFade 2.5s ease-out forwards;
+}
+
+</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={theme:{extend:{"colors":{"surface":"#fff8f2","error":"#ba1a1a","primary-fixed":"#ffdbce","tertiary-container":"#231c09","inverse-on-surface":"#ffefd2","secondary":"#735c00","surface-container-highest":"#f4e0bb","inverse-surface":"#3a2f15","on-tertiary":"#ffffff","on-error-container":"#93000a","secondary-fixed-dim":"#e9c349","on-secondary":"#ffffff","on-tertiary-fixed":"#221b08","on-tertiary-container":"#8f846a","on-tertiary-fixed-variant":"#4f4630","surface-container-high":"#fae6c0","outline-variant":"#d3c3be","tertiary":"#040200","on-primary":"#ffffff","error-container":"#ffdad6","surface-tint":"#74584e","on-primary-fixed":"#2a170f","primary-fixed-dim":"#e3bfb2","on-error":"#ffffff","tertiary-fixed-dim":"#d3c5a8","surface-bright":"#fff8f2","surface-dim":"#ebd8b3","on-primary-fixed-variant":"#5a4137","on-secondary-fixed-variant":"#574500","background":"#fff8f2","primary-container":"#2c1810","outline":"#827470","on-surface":"#241a04","on-background":"#241a04","on-secondary-fixed":"#241a00","inverse-primary":"#e3bfb2","on-secondary-container":"#745c00","on-primary-container":"#9e7e73","secondary-fixed":"#ffe088","on-surface-variant":"#504440","surface-container-lowest":"#ffffff","primary":"#090100","surface-container-low":"#fff2dd","surface-container":"#ffecc7","tertiary-fixed":"#f0e1c3","secondary-container":"#fed65b","surface-variant":"#f4e0bb"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"unit":"8px","margin-desktop":"40px","margin-mobile":"16px","container-max":"1200px","gutter":"24px"},"fontFamily":{"headline-lg-mobile":["Libre Caslon Text"],"label-sm":["JetBrains Mono"],"display-lg":["Libre Caslon Text"],"body-lg":["Literata"],"headline-lg":["Libre Caslon Text"],"body-md":["Literata"],"data-mono":["JetBrains Mono"],"title-md":["Libre Caslon Text"]},"fontSize":{"headline-lg-mobile":["28px",{"lineHeight":"36px","fontWeight":"700"}],"label-sm":["12px",{"lineHeight":"16px","fontWeight":"700"}],"display-lg":["48px",{"lineHeight":"56px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-lg":["18px",{"lineHeight":"28px","fontWeight":"400"}],"headline-lg":["32px",{"lineHeight":"40px","fontWeight":"700"}],"body-md":["16px",{"lineHeight":"24px","fontWeight":"400"}],"data-mono":["14px",{"lineHeight":"20px","letterSpacing":"0.05em","fontWeight":"500"}],"title-md":["20px",{"lineHeight":"28px","fontWeight":"600"}]}}}}</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..900&amp;family=Libre+Caslon+Text:wght@100..900&amp;family=Literata:wght@100..900&amp;display=swap" rel="stylesheet"><header class="fixed top-0 w-full z-50 bg-[#f5e6c8]/90 backdrop-blur-sm shadow-[0_4px_12px_rgba(44,24,16,0.08)]"><div class="h-20 max-w-container-max mx-auto px-margin-mobile lg:px-margin-desktop flex items-center justify-between"><div class="flex flex-col"><span class="font-headline-lg text-headline-lg tracking-widest text-primary uppercase">The Marauder's Ledger</span><span class="font-label-sm text-label-sm text-secondary italic -mt-1 tracking-tighter">I solemnly swear that I am up to no good</span></div><nav class="flex items-center gap-gutter" data-active-classes="text-secondary border-b-2 border-secondary"><a class="font-title-md text-body-md text-on-surface-variant hover:text-secondary transition-all px-2 py-1" data-path="landing" href="#">Landing</a><a aria-current="page" class="font-title-md transition-all px-2 py-1 text-secondary border-b-2 border-secondary" data-path="dashboard" href="#">Dashboard</a><a class="font-title-md text-body-md text-on-surface-variant hover:text-secondary transition-all px-2 py-1" data-path="mischief-list" href="#">Mischief List</a><div class="ml-4 w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></nav></div><div class="gold-divider w-full"></div></header><main class="w-full pt-20 px-margin-mobile lg:px-margin-desktop max-w-container-max mx-auto"><div class="flex flex-col w-full h-[calc(100vh-80px)]">
+<div class="flex flex-col lg:flex-row h-full gap-gutter">
+<!-- Left Panel: Interactive Marauder's Map -->
+<div class="flex-grow lg:w-3/5 h-full relative rounded-xl overflow-hidden shadow-xl bg-[#faf3e6] parchment-edge">
+<!-- Vignette Edge -->
+<div class="absolute inset-0 pointer-events-none" style="box-shadow: inset 0 0 100px rgba(115, 92, 0, 0.2), inset 0 0 20px rgba(44, 24, 16, 0.1);"></div>
+<!-- Gold Filigree Border Inner (Simulated) -->
+<div class="absolute inset-2 border border-secondary/20 pointer-events-none rounded-lg" style="mask-image: url('data:image/svg+xml,%3Csvg viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'100%25\' height=\'100%25\' fill=\'none\' stroke=\'black\' stroke-width=\'2\' stroke-dasharray=\'4 2\'/%3E%3C/svg%3E'); -webkit-mask-image: url('data:image/svg+xml,%3Csvg viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'100%25\' height=\'100%25\' fill=\'none\' stroke=\'black\' stroke-width=\'2\' stroke-dasharray=\'4 2\'/%3E%3C/svg%3E');"></div>
+<!-- Map Container (Interactive) -->
+<div class="w-full h-full relative overflow-auto overscroll-none p-8" id="marauders-map-container" style="background-image: url('data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noiseFilter\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'2\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noiseFilter)\' opacity=\'0.08\'/%3E%3C/svg%3E');">
+<!-- Map Title -->
+<div class="absolute top-8 left-8 z-10 p-4 bg-[#faf3e6]/90 backdrop-blur-md rounded-lg shadow-sm border border-secondary/20 flex flex-col pointer-events-none">
+<span class="font-headline-lg text-headline-lg text-secondary uppercase tracking-widest" style="writing-mode: vertical-rl; text-orientation: mixed;">Hogwarts &amp; Environs</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant italic mt-2 -ml-2">Live Tracking</span>
+</div>
+<!-- SVG Map Layout -->
+<svg class="w-[150%] h-[150%] max-w-none transform origin-top-left transition-transform duration-700 ease-out" id="marauders-map-svg" viewBox="0 0 1000 800">
+<!-- Base Terrain Paths (Ink Style) -->
+<path d="M 100,150 Q 200,50 400,100 T 800,200 Q 900,300 850,500 T 500,700 Q 300,750 150,600 Z" fill="none" opacity="0.3" stroke="#735c00" stroke-dasharray="10 5" stroke-width="1.5"></path>
+<path d="M 200,250 Q 300,150 500,200 T 700,300 Q 750,400 700,550 T 450,650 Q 250,600 200,450 Z" fill="none" opacity="0.4" stroke="#5c3d2e" stroke-dasharray="5 5" stroke-width="1"></path>
+<!-- Walking Paths (Footprints to be animated along these) -->
+<path d="M 300,300 Q 400,200 600,250" fill="none" id="path-hogwarts-hogsmeade" stroke="transparent"></path>
+<path d="M 600,250 Q 750,350 700,600" fill="none" id="path-hogsmeade-diagon" stroke="transparent"></path>
+<path d="M 300,300 Q 200,500 400,650" fill="none" id="path-hogwarts-gringotts" stroke="transparent"></path>
+<!-- Location Clusters -->
+<!-- Hogwarts -->
+<g class="cursor-pointer hover:scale-105 transition-transform location-cluster" data-location="hogwarts" transform="translate(300, 300)">
+<circle cx="0" cy="0" fill="#faf3e6" r="40" stroke="#2c1810" stroke-width="2" style="filter: drop-shadow(0px 4px 8px rgba(115, 92, 0, 0.2));"></circle>
+<path d="M -20,10 L 0,-25 L 20,10 Z" fill="none" stroke="#2c1810" stroke-width="2"></path>
+<rect fill="none" height="15" stroke="#2c1810" stroke-width="2" width="20" x="-10" y="10"></rect>
+<text class="uppercase tracking-wider" fill="#2c1810" font-family="'Libre Caslon Text', serif" font-size="14" font-weight="700" text-anchor="middle" x="0" y="55">Hogwarts</text>
+<!-- Transactions/Footprints -->
+<g class="footprints opacity-0">
+<path d="M 15,-15 Q 20,-20 25,-15 T 35,-20" fill="none" stroke="#2c1810" stroke-dasharray="2 4" stroke-width="1"></path>
+</g>
+</g>
+<!-- Hogsmeade -->
+<g class="cursor-pointer hover:scale-105 transition-transform location-cluster" data-location="hogsmeade" transform="translate(600, 250)">
+<circle cx="0" cy="0" fill="#faf3e6" r="30" stroke="#2c1810" stroke-width="2"></circle>
+<path d="M -15,5 L 0,-15 L 15,5 Z" fill="none" stroke="#2c1810" stroke-width="2"></path>
+<rect fill="none" height="10" stroke="#2c1810" stroke-width="2" width="16" x="-8" y="5"></rect>
+<text class="uppercase tracking-wider" fill="#2c1810" font-family="'Libre Caslon Text', serif" font-size="12" font-weight="700" text-anchor="middle" x="0" y="45">Hogsmeade</text>
+<!-- Anomaly Marker (Glowing Red) -->
+<circle class="animate-pulse shadow-[0_0_15px_#ba1a1a]" cx="20" cy="-20" fill="#ba1a1a" r="6"></circle>
+</g>
+<!-- Diagon Alley -->
+<g class="cursor-pointer hover:scale-105 transition-transform location-cluster" data-location="diagon" transform="translate(700, 600)">
+<circle cx="0" cy="0" fill="#faf3e6" r="35" stroke="#2c1810" stroke-width="2"></circle>
+<path d="M -10,0 L 0,-20 L 10,0" fill="none" stroke="#2c1810" stroke-width="2"></path>
+<rect fill="none" height="20" stroke="#2c1810" stroke-width="2" width="10" x="-5" y="0"></rect>
+<text class="uppercase tracking-wider" fill="#2c1810" font-family="'Libre Caslon Text', serif" font-size="12" font-weight="700" text-anchor="middle" x="0" y="50">Diagon Alley</text>
+</g>
+<!-- Gringotts -->
+<g class="cursor-pointer hover:scale-105 transition-transform location-cluster" data-location="gringotts" transform="translate(400, 650)">
+<circle cx="0" cy="0" fill="#faf3e6" r="25" stroke="#2c1810" stroke-width="2"></circle>
+<path d="M -10,10 L 0,-10 L 10,10 Z" fill="none" stroke="#2c1810" stroke-width="2"></path>
+<text class="uppercase tracking-wider" fill="#2c1810" font-family="'Libre Caslon Text', serif" font-size="12" font-weight="700" text-anchor="middle" x="0" y="40">Gringotts</text>
+<!-- Anomaly Marker (Glowing Red) -->
+<circle class="animate-pulse shadow-[0_0_10px_#ba1a1a]" cx="-15" cy="-15" fill="#ba1a1a" r="4"></circle>
+</g>
+<!-- Platform 9 3/4 -->
+<g class="cursor-pointer hover:scale-105 transition-transform location-cluster" data-location="platform" transform="translate(150, 400)">
+<circle cx="0" cy="0" fill="#faf3e6" r="20" stroke="#2c1810" stroke-width="2"></circle>
+<path d="M -8,5 L 0,-5 L 8,5 Z" fill="none" stroke="#2c1810" stroke-width="2"></path>
+<text class="uppercase tracking-wider" fill="#2c1810" font-family="'Libre Caslon Text', serif" font-size="10" font-weight="700" text-anchor="middle" x="0" y="35">Platform 9 3/4</text>
+</g>
+<!-- Animated Footprints along paths -->
+<g fill="none" id="dynamic-footprints" stroke="#2c1810" stroke-dasharray="2 6" stroke-width="1.5">
+<!-- Instantiated via JS -->
+<circle cx="403.3666076660156" cy="242.0167694091797" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="413.1061096191406" cy="239.75198364257812" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="422.923828125" cy="237.8544921875" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="432.80340576171875" cy="236.31088256835938" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="442.7300109863281" cy="235.1055908203125" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="452.69061279296875" cy="234.22378540039062" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="462.67376708984375" cy="233.65017700195312" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="472.66949462890625" cy="233.36935424804688" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="482.6691589355469" cy="233.36590576171875" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="492.66552734375" cy="233.62489318847656" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="502.65234375" cy="234.1337127685547" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="512.6243896484375" cy="234.87770080566406" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="522.5773315429688" cy="235.84445190429688" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="532.507568359375" cy="237.0221710205078" r="2" fill="#2c1810" class="footprint-trail-dot"></circle><circle cx="542.4120483398438" cy="238.3995361328125" r="2" fill="#2c1810" class="footprint-trail-dot"></circle></g>
+</svg>
+<!-- Zoom Controls (Wax Seal Style) -->
+<div class="absolute bottom-8 right-8 flex flex-col gap-3 z-20 p-2 bg-[#e8d5b0] border border-[#d4af37] rounded-full shadow-xl backdrop-blur-sm backdrop-blur-md">
+<button class="w-10 h-10 rounded-full bg-[#d4af37] text-primary flex items-center justify-center shadow-md hover:scale-110 transition-all duration-300 relative group hover:shadow-[0_0_15px_rgba(212,175,55,0.4)]" id="zoom-in" style="background-color: rgb(139, 115, 42); border: 2px solid rgb(92, 75, 26); clip-path: polygon(10% 0%, 95% 5%, 100% 85%, 85% 100%, 5% 95%, 0% 15%); filter: sepia(0.3) contrast(1.1); background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E&quot;);" title="Zoom In">
+<span class="material-symbols-outlined text-[20px] text-primary">add</span>
+<div class="absolute inset-0 rounded-full border border-primary/20"></div>
+</button>
+<button class="w-10 h-10 rounded-full bg-[#d4af37] text-primary flex items-center justify-center shadow-md hover:scale-110 transition-all duration-300 relative group hover:shadow-[0_0_15px_rgba(212,175,55,0.4)]" id="zoom-out" style="background-color: rgb(139, 115, 42); border: 2px solid rgb(92, 75, 26); clip-path: polygon(5% 10%, 90% 0%, 100% 75%, 92% 100%, 15% 90%, 0% 25%); filter: sepia(0.3) contrast(1.1); background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E&quot;);" title="Zoom Out">
+<span class="material-symbols-outlined text-[20px] text-primary">remove</span>
+<div class="absolute inset-0 rounded-full border border-primary/20"></div>
+</button>
+<div class="w-full h-px bg-[#d4af37]/30 my-1"></div>
+<button class="w-10 h-10 rounded-full bg-[#f5e6c8] text-secondary flex items-center justify-center shadow-sm hover:scale-110 hover:bg-[#d4af37] hover:text-primary transition-all duration-300 relative group" id="zoom-reset" style="background-color: rgb(197, 179, 138); border: 2px solid rgb(92, 75, 26); clip-path: polygon(15% 5%, 100% 0%, 85% 95%, 10% 100%, 0% 80%, 5% 20%); filter: sepia(0.3) contrast(1.1); background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.2'/%3E%3C/svg%3E&quot;);" title="Reset View">
+<span class="material-symbols-outlined text-[20px] text-primary">explore</span>
+<div class="absolute inset-0 rounded-full border border-secondary/20"></div>
+</button>
+</div>
+</div>
+<button id="mischief-managed-btn" class="absolute top-8 right-8 z-20 px-6 py-2 bg-[#f5e6c8] border-2 border-[#d4af37] rounded shadow-md text-secondary font-title-md uppercase tracking-widest transition-all duration-500 hover:shadow-[0_0_15px_rgba(212,175,55,0.6)] hover:scale-105 active:scale-95" style="font-family: &quot;Libre Caslon Text&quot;, serif; clip-path: polygon(2% 5%, 98% 0%, 100% 95%, 5% 100%, 0% 85%); background-image: url(&quot;data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.1'/%3E%3C/svg%3E&quot;);" onclick="document.getElementById('marauders-map-svg').style.opacity='0'; document.getElementById('marauders-map-svg').style.transition='opacity 3s ease-in-out'; this.style.opacity='0.5'; this.disabled=true;">Mischief Managed</button></div>
+<!-- Right Panel: Detected Mischief Sidebar -->
+<div class="flex-grow lg:w-2/5 h-full flex flex-col bg-surface-container-low rounded-xl shadow-md overflow-hidden relative" style="box-shadow: inset 2px 0 10px rgba(0,0,0,0.02);">
+<!-- Margin Line (Red ink vertical line) -->
+<div class="absolute left-6 top-0 bottom-0 w-px bg-error/30 z-0 pointer-events-none"></div>
+<div class="p-6 relative z-10 flex-shrink-0 bg-surface-container-low/95 backdrop-blur-sm shadow-sm border-b border-outline-variant/30">
+<h2 class="font-display-lg text-headline-lg text-primary mb-1">Detected Mischief</h2>
+<p class="font-body-md text-data-mono text-on-surface-variant">Real-time ledger anomalies.</p>
+<!-- Messrs Tabs Filters -->
+<div class="flex gap-4 mt-6 overflow-x-auto pb-2 scrollbar-hide">
+<button class="px-4 py-2 bg-secondary text-on-secondary rounded-full font-label-sm text-label-sm uppercase tracking-wider shadow-sm transition-transform hover:scale-105 active:scale-95 whitespace-nowrap relative group">
+                        Moony
+                        <div class="absolute inset-0 rounded-full ring-1 ring-inset ring-black/10 group-hover:bg-white/10 transition-colors"></div>
+</button>
+<button class="px-4 py-2 bg-transparent text-secondary border-2 border-secondary/30 rounded-full font-label-sm text-label-sm uppercase tracking-wider transition-all hover:border-secondary hover:bg-secondary/5 active:scale-95 whitespace-nowrap">
+                        Wormtail
+                    </button>
+<button class="px-4 py-2 bg-transparent text-secondary border-2 border-secondary/30 rounded-full font-label-sm text-label-sm uppercase tracking-wider transition-all hover:border-secondary hover:bg-secondary/5 active:scale-95 whitespace-nowrap">
+                        Padfoot
+                    </button>
+<button class="px-4 py-2 bg-transparent text-secondary border-2 border-secondary/30 rounded-full font-label-sm text-label-sm uppercase tracking-wider transition-all hover:border-secondary hover:bg-secondary/5 active:scale-95 whitespace-nowrap">
+                        Prongs
+                    </button>
+</div>
+</div>
+<!-- Scrollable List of Anomaly Cards -->
+<div class="flex-grow overflow-y-auto p-6 pl-12 space-y-6 relative z-10" id="anomaly-list">
+<!-- Card 1 -->
+<div class="bg-[#faf3e6] p-5 rounded-lg shadow-sm relative group cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:shadow-md hover:-translate-y-1 parchment-edge border-l-4 border-l-error" style="opacity: 1; transform: translateY(0px); transition: 0.6s cubic-bezier(0.25, 1, 0.5, 1);">
+<div class="absolute inset-0 rounded-lg pointer-events-none" style="box-shadow: inset 1px 1px 0 rgba(212, 175, 55, 0.4);"></div>
+<div class="flex justify-between items-start mb-3">
+<span class="font-label-sm text-data-mono text-error uppercase bg-error/10 px-2 py-1 rounded">Severity: Dementor</span>
+<span class="font-label-sm text-data-mono text-on-surface-variant">11:42 PM</span>
+</div>
+<h3 class="font-title-md text-title-md text-primary mb-2">Unregistered Apparition</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4">Multiple rapid transactions detected near Hogsmeade boundaries. Suspected Polyjuice purchase.</p>
+<div class="flex items-center justify-between border-t border-secondary/20 pt-3">
+<span class="font-label-sm text-label-sm text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+                            Hogsmeade
+                        </span>
+<button class="font-label-sm text-label-sm text-primary hover:text-secondary underline decoration-secondary/50 underline-offset-4 transition-colors">Investigate</button>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-[#faf3e6] p-5 rounded-lg shadow-sm relative group cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:shadow-md hover:-translate-y-1 parchment-edge border-l-4 border-l-secondary" style="opacity: 1; transform: translateY(0px); transition: 0.6s cubic-bezier(0.25, 1, 0.5, 1);">
+<div class="absolute inset-0 rounded-lg pointer-events-none" style="box-shadow: inset 1px 1px 0 rgba(212, 175, 55, 0.4);"></div>
+<div class="flex justify-between items-start mb-3">
+<span class="font-label-sm text-data-mono text-secondary uppercase bg-secondary/10 px-2 py-1 rounded">Severity: Boggart</span>
+<span class="font-label-sm text-data-mono text-on-surface-variant">10:15 PM</span>
+</div>
+<h3 class="font-title-md text-title-md text-primary mb-2">Gringotts Vault Irregularity</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4">Excessive withdrawal from Vault 713. Signature mismatch detected in goblin records.</p>
+<div class="flex items-center justify-between border-t border-secondary/20 pt-3">
+<span class="font-label-sm text-label-sm text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">account_balance</span>
+                            Gringotts
+                        </span>
+<button class="font-label-sm text-label-sm text-primary hover:text-secondary underline decoration-secondary/50 underline-offset-4 transition-colors">Investigate</button>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-[#faf3e6] p-5 rounded-lg shadow-sm relative group cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.25,1,0.5,1)] hover:shadow-md hover:-translate-y-1 parchment-edge border-l-4 border-l-outline" style="opacity: 1; transform: translateY(0px); transition: 0.6s cubic-bezier(0.25, 1, 0.5, 1);">
+<div class="absolute inset-0 rounded-lg pointer-events-none" style="box-shadow: inset 1px 1px 0 rgba(212, 175, 55, 0.4);"></div>
+<div class="flex justify-between items-start mb-3">
+<span class="font-label-sm text-data-mono text-on-surface-variant uppercase bg-outline/10 px-2 py-1 rounded">Severity: Peeves</span>
+<span class="font-label-sm text-data-mono text-on-surface-variant">08:30 PM</span>
+</div>
+<h3 class="font-title-md text-title-md text-primary mb-2">Zonko's Bulk Order</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-4">Large purchase of Dungbombs. Likely diversion tactic. Monitor corridors on 3rd floor.</p>
+<div class="flex items-center justify-between border-t border-secondary/20 pt-3">
+<span class="font-label-sm text-label-sm text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">storefront</span>
+                            Diagon Alley
+                        </span>
+<button class="font-label-sm text-label-sm text-primary hover:text-secondary underline decoration-secondary/50 underline-offset-4 transition-colors">Investigate</button>
+</div>
+</div>
+<!-- Spacer for scrolling past chart -->
+<div class="h-32" style="opacity: 1; transform: translateY(0px); transition: 0.6s cubic-bezier(0.25, 1, 0.5, 1);"></div>
+</div>
+<!-- Bottom Panel: Spend Trend Chart (Recharts style SVG) -->
+<div class="absolute bottom-0 w-full p-6 bg-surface-container-low/95 backdrop-blur-md border-t border-outline-variant/30 z-20">
+<div class="flex justify-between items-end mb-2">
+<span class="font-title-md text-title-md text-primary">Mischief Volume</span>
+<span class="font-label-sm text-data-mono text-secondary">Last 7 Days</span>
+</div>
+<div class="h-24 w-full relative">
+<!-- Simple SVG Line Chart -->
+<svg class="w-full h-full preserve-aspect-ratio-none" viewBox="0 0 400 100">
+<!-- Grid Lines (Ink style) -->
+<line opacity="0.3" stroke="#735c00" stroke-dasharray="2 2" stroke-width="0.5" x1="0" x2="400" y1="25" y2="25"></line>
+<line opacity="0.3" stroke="#735c00" stroke-dasharray="2 2" stroke-width="0.5" x1="0" x2="400" y1="50" y2="50"></line>
+<line opacity="0.3" stroke="#735c00" stroke-dasharray="2 2" stroke-width="0.5" x1="0" x2="400" y1="75" y2="75"></line>
+<!-- Area Fill -->
+<path d="M 0,90 L 50,70 L 100,85 L 150,40 L 200,60 L 250,20 L 300,50 L 350,10 L 400,30 L 400,100 L 0,100 Z" fill="url(#goldGradient)" opacity="0.1"></path>
+<!-- Line -->
+<path d="M 0,90 L 50,70 L 100,85 L 150,40 L 200,60 L 250,20 L 300,50 L 350,10 L 400,30" fill="none" stroke="#735c00" stroke-linejoin="round" stroke-width="2"></path>
+<!-- Data Points (Wax Seals) -->
+<circle cx="150" cy="40" fill="#d4af37" r="4" stroke="#2c1810" stroke-width="1"></circle>
+<circle class="animate-pulse" cx="250" cy="20" fill="#ba1a1a" r="4" stroke="#2c1810" stroke-width="1"></circle> <!-- Anomaly Peak -->
+<circle cx="350" cy="10" fill="#d4af37" r="4" stroke="#2c1810" stroke-width="1"></circle>
+<!-- Gradient Def -->
+<defs>
+<linearGradient id="goldGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#735c00"></stop>
+<stop offset="100%" stop-color="#735c00" stop-opacity="0"></stop>
+</linearGradient>
+</defs>
+</svg>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+    // Micro-interactions for Map Zooming
+    document.addEventListener('DOMContentLoaded', () => {
+        const svgMap = document.getElementById('marauders-map-svg');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        let currentScale = 1;
+        
+        zoomInBtn.addEventListener('click', () => {
+            currentScale = Math.min(currentScale + 0.2, 2.5);
+            svgMap.style.transform = `scale(${currentScale})`;
+        });
+        
+        zoomOutBtn.addEventListener('click', () => {
+            currentScale = Math.max(currentScale - 0.2, 0.5);
+            svgMap.style.transform = `scale(${currentScale})`;
+        });
+
+        // Ink reveal animation on cards load
+        const cards = document.querySelectorAll('#anomaly-list > div');
+        cards.forEach((card, index) => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s cubic-bezier(0.25, 1, 0.5, 1)';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100 * (index + 1));
+        });
+
+        // Animated footprints setup
+        const dynamicFootprintsContainer = document.getElementById('dynamic-footprints');
+        const pathHogwartsHogsmeade = document.getElementById('path-hogwarts-hogsmeade');
+        
+        if(pathHogwartsHogsmeade && dynamicFootprintsContainer) {
+            const length = pathHogwartsHogsmeade.getTotalLength();
+            let progress = 0;
+            const speed = 2; // Speed of movement
+
+            function animateFootprints() {
+                progress += speed;
+                if (progress > length) {
+                    progress = 0;
+                }
+
+                const point = pathHogwartsHogsmeade.getPointAtLength(progress);
+                
+                // Create a temporary footprint dot
+                const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                dot.setAttribute("cx", point.x);
+                dot.setAttribute("cy", point.y);
+                dot.setAttribute("r", "2");
+                dot.setAttribute("fill", "#2c1810"); // Ink color
+                dot.setAttribute("class", "footprint-trail-dot");
+                
+                dynamicFootprintsContainer.appendChild(dot);
+
+                // Remove the dot after the animation finishes (2.5s)
+                setTimeout(() => {
+                    if(dot.parentNode) {
+                        dot.parentNode.removeChild(dot);
+                    }
+                }, 2500);
+
+                requestAnimationFrame(animateFootprints);
+            }
+            
+            // Throttle the creation slightly so it's a series of distinct dots
+            let lastTime = 0;
+            function throttledAnimate(time) {
+                if(time - lastTime > 150) { // Create a dot every 150ms
+                     progress += speed * 5;
+                    if (progress > length) {
+                        progress = 0;
+                    }
+
+                    const point = pathHogwartsHogsmeade.getPointAtLength(progress);
+                    
+                    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    dot.setAttribute("cx", point.x);
+                    dot.setAttribute("cy", point.y);
+                    dot.setAttribute("r", "2");
+                    dot.setAttribute("fill", "#2c1810"); // Ink color
+                    dot.setAttribute("class", "footprint-trail-dot");
+                    
+                    dynamicFootprintsContainer.appendChild(dot);
+
+                    setTimeout(() => {
+                        if(dot.parentNode) {
+                            dot.parentNode.removeChild(dot);
+                        }
+                    }, 2500);
+                    lastTime = time;
+                }
+                requestAnimationFrame(throttledAnimate);
+            }
+            requestAnimationFrame(throttledAnimate);
+        }
+    });
+</script></main><footer class="w-full mt-24 pb-12 opacity-60"><div class="gold-divider w-full mb-8 opacity-30"></div><div class="max-w-container-max mx-auto px-margin-mobile lg:px-margin-desktop text-center"><p class="font-body-md text-error italic mb-2 tracking-widest">Moony, Wormtail, Padfoot &amp; Prongs</p><p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-[0.3em]">Est. 1971</p></div></footer>
+
+
+</body></html>
