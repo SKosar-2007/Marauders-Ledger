@@ -103,6 +103,94 @@ body {
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
+/* Torn Edge */
+.torn-edge {
+  clip-path: polygon(
+    0% 0%, 3% 2%, 6% 0%, 9% 1%, 12% 0%, 15% 2%, 18% 0%, 21% 1%, 24% 0%, 27% 2%,
+    30% 0%, 33% 1%, 36% 0%, 39% 2%, 42% 0%, 45% 1%, 48% 0%, 51% 2%, 54% 0%, 57% 1%,
+    60% 0%, 63% 2%, 66% 0%, 69% 1%, 72% 0%, 75% 2%, 78% 0%, 81% 1%, 84% 0%, 87% 2%,
+    90% 0%, 93% 1%, 96% 0%, 100% 2%,
+    100% 98%, 97% 100%, 94% 98%, 91% 100%, 88% 98%, 85% 100%, 82% 98%, 79% 100%,
+    76% 98%, 73% 100%, 70% 98%, 67% 100%, 64% 98%, 61% 100%, 58% 98%, 55% 100%,
+    52% 98%, 49% 100%, 46% 98%, 43% 100%, 40% 98%, 37% 100%, 34% 98%, 31% 100%,
+    28% 98%, 25% 100%, 22% 98%, 19% 100%, 16% 98%, 13% 100%, 10% 98%, 7% 100%,
+    4% 98%, 0% 100%
+  );
+}
+.torn-edge-left {
+  clip-path: polygon(
+    0% 0%, 100% 0%, 100% 100%, 0% 100%,
+    2% 97%, 0% 94%, 1% 91%, 0% 88%, 2% 85%, 0% 82%, 1% 79%, 0% 76%,
+    2% 73%, 0% 70%, 1% 67%, 0% 64%, 2% 61%, 0% 58%, 1% 55%, 0% 52%,
+    2% 49%, 0% 46%, 1% 43%, 0% 40%, 2% 37%, 0% 34%, 1% 31%, 0% 28%,
+    2% 25%, 0% 22%, 1% 19%, 0% 16%, 2% 13%, 0% 10%, 1% 7%, 0% 4%, 2% 1%
+  );
+}
+
+/* Ornamental Divider */
+.ornamental-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #735c00;
+  font-size: 12px;
+  opacity: 0.5;
+}
+.ornamental-divider::before,
+.ornamental-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #735c00, transparent);
+}
+
+/* Ink Underline */
+.ink-underline {
+  position: relative;
+  text-decoration: none;
+}
+.ink-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #735c00;
+  transition: width 0.3s ease;
+}
+.ink-underline:hover::after {
+  width: 100%;
+}
+
+/* Torchlight Flicker */
+.torchlight {
+  position: relative;
+}
+.torchlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(212,175,55,0.08) 0%, transparent 60%);
+  animation: flicker 3s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Glow Effect */
+.glow-gold { box-shadow: 0 0 15px rgba(212,175,55,0.3), 0 0 30px rgba(212,175,55,0.1); }
+.glow-red { box-shadow: 0 0 15px rgba(220,38,38,0.3), 0 0 30px rgba(220,38,38,0.1); }
+
+/* Toggle Glow */
+.toggle-active {
+  box-shadow: 0 0 8px rgba(45,106,79,0.5), 0 0 16px rgba(45,106,79,0.2);
+}
+
+/* Subtle Pulse on Hover */
+.hover-pulse:hover {
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
 /* Dark Mode */
 .dark body {
   background-color: #1a1a2e;

@@ -26,13 +26,22 @@ export default function DuelingArena() {
           <p className="font-crimson text-sm text-[#504440] italic">Performance benchmarking — where spells are tested</p>
         </div>
 
-        {/* Gauges */}
+        {/* Gauges with tick marks */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-[#faf3e6] rounded-xl p-6 shadow-md text-center">
+            className="bg-[#faf3e6] rounded-xl p-6 shadow-md text-center torchlight torn-edge">
             <h3 className="font-cinzel text-sm text-[#2c1810] mb-4 uppercase tracking-widest">Spells Per Second</h3>
             <div className="relative w-32 h-32 mx-auto mb-4">
               <svg className="w-32 h-32 -rotate-90" viewBox="0 0 36 36">
+                {/* Tick marks */}
+                {Array.from({ length: 8 }).map((_, i) => {
+                  const angle = (i * 45) * Math.PI / 180
+                  const x1 = 18 + 13 * Math.cos(angle)
+                  const y1 = 18 + 13 * Math.sin(angle)
+                  const x2 = 18 + 15 * Math.cos(angle)
+                  const y2 = 18 + 15 * Math.sin(angle)
+                  return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#735c0030" strokeWidth="0.5" />
+                })}
                 <circle cx="18" cy="18" r="15" fill="none" stroke="#735c0020" strokeWidth="3" />
                 <circle cx="18" cy="18" r="15" fill="none" stroke="#2d6a4f" strokeWidth="3"
                   strokeDasharray="85 100" strokeLinecap="round" />
@@ -46,10 +55,18 @@ export default function DuelingArena() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="bg-[#faf3e6] rounded-xl p-6 shadow-md text-center">
+            className="bg-[#faf3e6] rounded-xl p-6 shadow-md text-center torchlight torn-edge">
             <h3 className="font-cinzel text-sm text-[#2c1810] mb-4 uppercase tracking-widest">Response Time</h3>
             <div className="relative w-32 h-32 mx-auto mb-4">
               <svg className="w-32 h-32 -rotate-90" viewBox="0 0 36 36">
+                {Array.from({ length: 8 }).map((_, i) => {
+                  const angle = (i * 45) * Math.PI / 180
+                  const x1 = 18 + 13 * Math.cos(angle)
+                  const y1 = 18 + 13 * Math.sin(angle)
+                  const x2 = 18 + 15 * Math.cos(angle)
+                  const y2 = 18 + 15 * Math.sin(angle)
+                  return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#735c0030" strokeWidth="0.5" />
+                })}
                 <circle cx="18" cy="18" r="15" fill="none" stroke="#735c0020" strokeWidth="3" />
                 <circle cx="18" cy="18" r="15" fill="none" stroke="#735c00" strokeWidth="3"
                   strokeDasharray="35 100" strokeLinecap="round" />

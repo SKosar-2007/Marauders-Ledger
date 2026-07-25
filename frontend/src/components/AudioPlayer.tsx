@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 
 interface AudioPlayerProps {
@@ -7,10 +8,25 @@ interface AudioPlayerProps {
 }
 
 export default function AudioPlayer({ audioUrl, isLoading, error }: AudioPlayerProps) {
+  const [playing, setPlaying] = useState(false)
+  const [bars, setBars] = useState(Array.from({ length: 24 }, () => 4 + Math.random() * 12))
+
+  useEffect(() => {
+    if (!playing) return
+    const interval = setInterval(() => {
+      setBars(Array.from({ length: 24 }, () => 4 + Math.random() * 16))
+    }, 150)
+    return () => clearInterval(interval)
+  }, [playing])
+
   const togglePlay = () => {
     if (!audioUrl) return
-    const audio = new Audio(audioUrl)
-    audio.play()
+    setPlaying(!playing)
+    if (!playing) {
+      const audio = new Audio(audioUrl)
+      audio.play()
+      audio.onended = () => setPlaying(false)
+    }
   }
 
   if (isLoading) {
@@ -44,20 +60,18 @@ export default function AudioPlayer({ audioUrl, isLoading, error }: AudioPlayerP
 
   return (
     <div className="flex items-center gap-3 p-4 bg-[#faf3e6] rounded-lg border border-[#735c00]/20">
-      <button
-        onClick={togglePlay}
-        className="w-10 h-10 rounded-full bg-[#735c00] text-white flex items-center justify-center hover:bg-[#5a4a00] transition-colors"
-      >
-        <span className="material-symbols-outlined text-[20px]">play_arrow</span>
+      <button onClick={togglePlay}
+        className="w-10 h-10 rounded-full bg-[#735c00] text-white flex items-center justify-center hover:bg-[#5a4a00] transition-colors flex-shrink-0">
+        <span className="material-symbols-outlined text-[20px]">{playing ? 'pause' : 'play_arrow'}</span>
       </button>
       <div className="flex-1">
-        <p className="font-crimson text-sm text-[#2c1810]">The Map speaks...</p>
-        <div className="flex items-end gap-[2px] h-4 mt-1">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div
-              key={i}
+        <p className="font-crimson text-sm text-[#2c1810]">{playing ? 'The Map is speaking...' : 'The Map speaks...'}</p>
+        <div className="flex items-end gap-[2px] h-5 mt-1">
+          {bars.map((h, i) => (
+            <motion.div key={i}
               className="w-[3px] bg-[#735c00] rounded-full"
-              style={{ height: `${4 + Math.random() * 12}px` }}
+              animate={{ height: playing ? h : 4 }}
+              transition={{ duration: 0.1 }}
             />
           ))}
         </div>

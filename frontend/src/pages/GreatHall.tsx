@@ -26,41 +26,49 @@ const MARAUDERS = [
   { name: 'Prongs', status: 'offline' },
 ]
 
+function FloatingCandles() {
+  return (
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      {Array.from({ length: 12 }).map((_, i) => (
+        <motion.div key={i}
+          className="absolute"
+          style={{ left: `${8 + (i * 7.5) % 90}%`, top: `${5 + (i * 13) % 80}%` }}
+          animate={{ y: [0, -15, 0], opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 3 + (i % 4) * 0.5, repeat: Infinity, ease: 'easeInOut', delay: i * 0.3 }}>
+          <svg width="10" height="18" viewBox="0 0 10 18">
+            <rect x="3.5" y="7" width="3" height="11" fill="#f5e6c8" rx="1" />
+            <ellipse cx="5" cy="5" rx="3.5" ry="5" fill="#d4af37" opacity="0.7" />
+            <ellipse cx="5" cy="3" rx="1.5" ry="2.5" fill="#fff" opacity="0.3" />
+          </svg>
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
 export default function GreatHall() {
   return (
     <div className="min-h-screen ml-[72px]">
+      <FloatingCandles />
       <Header />
-      <main className="w-full pt-16 px-4 lg:px-10 max-w-[1200px] mx-auto pb-24">
+      <main className="w-full pt-16 px-4 lg:px-10 max-w-[1200px] mx-auto pb-24 relative z-10">
         <div className="py-8">
           <h1 className="font-cinzel text-2xl text-[#2c1810] mb-1">The Great Hall</h1>
           <p className="font-crimson text-sm text-[#504440] italic">Global activity stream — all that happens in the castle</p>
         </div>
 
-        {/* Floating Candles */}
-        <div className="relative h-16 mb-4 overflow-hidden">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <motion.div key={i}
-              className="absolute"
-              style={{ left: `${10 + i * 12}%`, top: `${10 + (i % 3) * 20}%` }}
-              animate={{ y: [0, -8, 0], opacity: [0.6, 1, 0.6] }}
-              transition={{ duration: 2 + i * 0.3, repeat: Infinity, ease: 'easeInOut' }}>
-              <svg width="12" height="20" viewBox="0 0 12 20">
-                <rect x="4" y="8" width="4" height="12" fill="#f5e6c8" rx="1" />
-                <ellipse cx="6" cy="6" rx="4" ry="6" fill="#d4af37" opacity="0.8" />
-                <ellipse cx="6" cy="4" rx="2" ry="3" fill="#fff" opacity="0.4" />
-              </svg>
-            </motion.div>
-          ))}
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Activity Feed */}
+          {/* Activity Feed with torn-edge */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="lg:col-span-2 bg-[#faf3e6] rounded-xl p-6 shadow-md">
+            className="lg:col-span-2 bg-[#faf3e6] rounded-xl p-6 shadow-md torn-edge">
+            <div className="ornamental-divider mb-4">♦</div>
             <h3 className="font-cinzel text-sm text-[#2c1810] mb-6 uppercase tracking-widest">Activity Stream</h3>
             <div className="space-y-3">
               {EVENTS.map((e, i) => (
-                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                <motion.div key={i}
+                  initial={{ opacity: 0, filter: 'blur(4px)' }}
+                  animate={{ opacity: 1, filter: 'blur(0px)' }}
+                  transition={{ delay: i * 0.1 }}
                   className={`flex items-start gap-4 p-3 rounded-lg ${
                     e.severity === 'high' ? 'bg-[#dc2626]/5 border-l-2 border-[#dc2626]' :
                     e.severity === 'medium' ? 'bg-[#d4af37]/5 border-l-2 border-[#d4af37]' :
@@ -77,7 +85,8 @@ export default function GreatHall() {
                 </motion.div>
               ))}
             </div>
-            <button className="w-full mt-4 py-2 text-center font-crimson text-sm text-[#735c00] hover:text-[#2c1810] border border-[#735c00]/20 rounded-lg hover:border-[#735c00]/40 transition-colors">
+            <div className="ornamental-divider mt-4">♦</div>
+            <button className="w-full mt-4 py-2 text-center font-crimson text-sm text-[#735c00] hover:text-[#2c1810] border border-[#735c00]/20 rounded-lg hover:border-[#735c00]/40 transition-colors hover-pulse">
               Load More Entries
             </button>
           </motion.div>
