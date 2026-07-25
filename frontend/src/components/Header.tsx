@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import UserMenu from './UserMenu'
 
 export default function Header() {
   const location = useLocation()
@@ -29,9 +30,7 @@ export default function Header() {
               {path === '/' ? 'Landing' : path === '/dashboard' ? 'Dashboard' : 'Mischief List'}
             </Link>
           ))}
-          <div className="ml-2 w-8 h-8 rounded-full bg-[#2c1810] flex items-center justify-center">
-            <span className="text-white text-xs material-symbols-outlined">person</span>
-          </div>
+          <UserMenu />
         </nav>
       </div>
       <div className="gold-divider w-full" />
