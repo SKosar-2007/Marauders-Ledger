@@ -5,6 +5,7 @@ Marauder's Ledger - Inference Code (v4.0)
 Load pre-trained ensemble (XGB + LGBM + RF + GB) and run anomaly detection.
 Designed for FastAPI /analyze endpoint integration.
 """
+from __future__ import annotations
 
 import importlib
 import json

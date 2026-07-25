@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 import io
 from contextlib import asynccontextmanager
+from typing import Optional
 
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Response, UploadFile
@@ -23,12 +26,6 @@ from app.gemini import generate_narrative
 from app.inference import detect_anomalies, load_models
 from app.schemas import AnomalyResult, BatchResponse, HealthResponse, NarrativeResponse
 from app.tts import generate_audio
-from app.vector_store import (
-    _encode_transaction as _encode_txn_for_vec,
-)
-from app.vector_store import (
-    search_similar_transactions,
-)
 
 
 @asynccontextmanager
@@ -62,14 +59,14 @@ async def health_check():
 
 
 @app.post("/api/upload", response_model=BatchResponse)
-async def upload_csv(file: UploadFile = File(...)):  # noqa: B008
+async def upload_csv(file: UploadFile = File(...)):
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are accepted")
 
     content = await file.read()
     try:
         df = pd.read_csv(io.BytesIO(content))
-    except Exception:  # noqa: BLE001
+    except Exception:
         raise HTTPException(status_code=400, detail="Failed to parse CSV")
 
     missing = REQUIRED_COLUMNS - set(df.columns)
@@ -111,7 +108,7 @@ async def analyze_batch(batch_id: str):
 
 def _row_to_anomaly(row: dict) -> dict:
     return {
-        "anomaly_id": row["anomaly_id"],
+        "anomaly_id": str(row["anomaly_id"]),
         "txn_id": row.get("txn_id"),
         "amount": row["amount"],
         "category": row["category"],
@@ -130,7 +127,7 @@ def _row_to_anomaly(row: dict) -> dict:
 
 
 @app.get("/api/anomalies", response_model=list[AnomalyResult])
-async def list_anomalies(user_id: str | None = None, severity: str | None = None):
+async def list_anomalies(user_id: Optional[str] = None, severity: Optional[str] = None):
     rows = await asyncio.to_thread(get_anomalies, user_id, severity)
     return [_row_to_anomaly(r) for r in rows]
 
@@ -143,29 +140,13 @@ async def get_anomaly(anomaly_id: int):
     return _row_to_anomaly(row)
 
 
-@app.post("/api/transactions/similar")
-async def similar_transactions(amount: float, category: str, merchant: str, hour: int, day: int):
-    vec = _encode_txn_for_vec({"amount": amount, "category": category, "merchant": merchant, "hour": hour, "day": day})
-    results = await asyncio.to_thread(search_similar_transactions, vec, 5)
-    return [
-        {
-            "amount": r["amount"],
-            "category": r.get("category"),
-            "merchant": r.get("merchant"),
-            "hour": r.get("hour"),
-            "day": r.get("day"),
-        }
-        for r in results
-    ]
-
-
 @app.get("/api/narratives/{anomaly_id}", response_model=NarrativeResponse)
 async def get_narrative(anomaly_id: int):
     existing = await asyncio.to_thread(get_narrative_by_anomaly_id, anomaly_id)
     if existing:
         return NarrativeResponse(
-            narrative_id=existing["narrative_id"],
-            anomaly_id=existing["anomaly_id"],
+            narrative_id=str(existing["narrative_id"]),
+            anomaly_id=str(existing["anomaly_id"]),
             text=existing["text"],
             created_at=existing.get("created_at"),
         )
@@ -178,8 +159,8 @@ async def get_narrative(anomaly_id: int):
     nid = await asyncio.to_thread(insert_narrative, anomaly_id, text)
 
     return NarrativeResponse(
-        narrative_id=nid,
-        anomaly_id=anomaly_id,
+        narrative_id=str(nid),
+        anomaly_id=str(anomaly_id),
         text=text,
     )
 

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -9,24 +12,24 @@ class Transaction(BaseModel):
     merchant: str
     hour: int
     day: int
-    timestamp: datetime | None = None
+    timestamp: Optional[datetime] = None
 
 
 class AnomalyResult(BaseModel):
-    anomaly_id: int
-    txn_id: str | None = None
+    anomaly_id: str
+    txn_id: Optional[str] = None
     amount: float
     category: str
     merchant: str
     hour: int
-    day: int | None = None
-    isolation_score: float = 0
-    rule_score: float = 0
-    final_score: float = 0
+    day: Optional[int] = None
+    isolation_score: float
+    rule_score: float
+    final_score: float
     is_anomaly: bool
     severity: str
-    triggered_rules: list[str]
-    detected_at: datetime | None = None
+    triggered_rules: list
+    detected_at: Optional[str] = None
 
 
 class BatchResponse(BaseModel):
@@ -41,7 +44,7 @@ class HealthResponse(BaseModel):
 
 
 class NarrativeResponse(BaseModel):
-    narrative_id: int
-    anomaly_id: int
+    narrative_id: str
+    anomaly_id: str
     text: str
-    created_at: datetime | None = None
+    created_at: Optional[str] = None

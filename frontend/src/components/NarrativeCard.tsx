@@ -31,6 +31,7 @@ export default function NarrativeCard({ text, isLoading }: NarrativeCardProps) {
       <div className="bg-[#faf3e6] p-6 rounded-lg border border-[#735c00]/20 relative">
         <div className="absolute top-0 left-6 w-[2px] h-full bg-[#dc2626]/30" />
         <div className="pl-4">
+          <p className="font-crimson text-xs text-[#735c00] uppercase tracking-widest mb-3">Divination Report</p>
           <p className="font-crimson text-sm text-[#504440] italic">The Map is thinking...</p>
         </div>
       </div>

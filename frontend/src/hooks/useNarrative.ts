@@ -6,5 +6,6 @@ export function useNarrative(anomalyId: string) {
     queryKey: ['narrative', anomalyId],
     queryFn: () => getNarrative(anomalyId),
     enabled: !!anomalyId,
+    retry: false,
   })
 }

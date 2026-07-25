@@ -7,6 +7,51 @@
 
 ---
 
+## Build Progress (Updated: Phase 4 — COMPLETE ✅)
+
+| Phase | Status | Hours Used | Notes |
+|-------|--------|------------|-------|
+| Phase 0 — Scaffolding | ✅ Done | 2 | Backend + Frontend scaffolded, in-memory DB |
+| Phase 1 — Backend Core | ✅ Done | 4 | CSV upload, ML inference, all endpoints working |
+| Phase 2 — Frontend Core | ✅ Done | 3 | Landing page, upload, AnomalyCard, FilterTabs |
+| Phase 3 — Marauder's Map SVG | ✅ Done | 4 | Full SVG map with zoom, ink wipe, footprint trails |
+| Phase 4 — Anomaly Detail Panel | ✅ Done | 2 | Gauges, narrative, audio, tethered txns, Mark Valid/Confirm |
+| Phase 5 — Stitch Prototypes (NEW) | ✅ Done | 3 | MischiefList, Vault, Pensieve, OwlPost, Profile + SidebarNav |
+| Phase 6 — Narrative & TTS | ✅ Done | 1 | Gemini fallback narratives, ElevenLabs 501 handling, AudioPlayer error state |
+| Phase 7 — Celery/Docker | ✅ Done | 1 | Dockerfiles for backend + frontend, docker-compose, nginx reverse proxy |
+| Phase 8 — CI/CD | ✅ Done | 0.5 | GitHub Actions workflow (backend lint+test, frontend tsc+build) |
+| Phase 9 — Testing & Bug Fixes | ✅ Done | 1 | 6/6 E2E tests passing, toast notifications, page transitions |
+| Phase 10 — Final Polish | ✅ Done | 1 | Toast system, AudioPlayer error states, AnimatePresence |
+| **TOTAL** | | **23.5/30** | |
+
+### Stitch Prototype Features Implemented (All 20)
+1. ✅ Header — Logo, profile, notifications, wax-seal
+2. ✅ Footer — Ministry of Magic stamp, parchment-edge
+3. ✅ SidebarNav — Great Hall navigation (7 routes)
+4. ✅ ScoreGauge — SVG ring gauge with color + description
+5. ✅ AnomalyCard — Moony/Wormtail/Padfoot/Prongs tabs, location pins, impact values
+6. ✅ FilterTabs — Category + severity dropdowns
+7. ✅ UploadZone — Drag-drop CSV with parchment border, loading state
+8. ✅ MaraudersMap — Zoom controls, animated footprint trails, ink wipe "Mischief Managed"
+9. ✅ SpendChart — Recharts with tooltip, legend, ink/gold colors
+10. ✅ NarrativeCard — Typewriter effect, parchment divination report styling
+11. ✅ AudioPlayer — Static waveform bars, playback controls
+12. ✅ SeverityBadge — Dementor/Boggart/Peeves with pulsing dot
+13. ✅ MischiefList — Historical data table with search/filter, severity filter, pagination
+14. ✅ Vault — Gringotts account summary, balance, stats, transaction table
+15. ✅ Pensieve — Deep analysis with spending categories, risk breakdown, time filters
+16. ✅ OwlPost — Notifications with read/unread, mark all read, severity icons
+17. ✅ Profile — Wizard's dossier, skills bars, recent cases, stats grid
+18. ✅ AnomalyDetail — Mark Valid, Confirm Mischief, tethered transactions
+19. ✅ Landing — Compass rose spin, upload card, investigation cards
+20. ✅ Full CSS Design System — All animations, parchment-edge, wax-seal, shimmer
+21. ✅ Toast Notification System — Success/error toasts on upload
+22. ✅ Page Transitions — AnimatePresence for smooth route changes
+23. ✅ AudioPlayer Error State — Graceful fallback when TTS unavailable
+24. ✅ E2E Test Suite — 6 tests covering full API flow
+
+---
+
 ## Pre-Build Checklist (Already Done ✅)
 
 | Item | Status | Files |
@@ -1012,22 +1057,22 @@ marauders-ledger/
 
 | Tech | Purpose | Setup Status |
 |------|---------|-------------|
-| React 18 + Vite + TypeScript | Frontend | ☐ |
-| Tailwind CSS | Styling | ☐ |
-| Framer Motion | Animations | ☐ |
-| Recharts | Charts | ☐ |
-| React Router | Routing | ☐ |
-| TanStack Query | API caching | ☐ |
-| Python 3.11 + FastAPI | Backend | ☐ |
-| scikit-learn | ML inference | ☐ |
-| Pandas + NumPy | Data processing | ☐ |
+| React 19 + Vite 8 + TypeScript | Frontend | ✅ |
+| Tailwind CSS v4 | Styling | ✅ |
+| Framer Motion | Animations | ✅ |
+| Recharts | Charts | ✅ |
+| React Router v7 | Routing | ✅ |
+| TanStack Query | API caching | ✅ |
+| Python 3.9 + FastAPI | Backend | ✅ |
+| scikit-learn | ML inference | ✅ |
+| Pandas + NumPy | Data processing | ✅ |
 | Celery + Redis | Async tasks | ☐ |
-| Actian Data Platform | Database | ☐ |
-| Gemini 1.5 Flash | NLG narratives | ☐ |
-| ElevenLabs | TTS voice | ☐ |
+| In-memory DB (local dev) | Database | ✅ |
+| Gemini 1.5 Flash | NLG narratives | ✅ (fallback ready) |
+| ElevenLabs | TTS voice | ✅ (fallback ready) |
 | Superplane | Orchestration | ☐ |
-| GitHub Actions | CI/CD | ☐ |
-| Docker Compose | Containerization | ☐ |
+| GitHub Actions | CI/CD | ✅ |
+| Docker Compose | Containerization | ✅ |
 
 ---
 

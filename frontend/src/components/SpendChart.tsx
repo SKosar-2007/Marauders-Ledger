@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceDot } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface SpendChartProps {
   data: Array<{ day: string; amount: number; hasAnomaly?: boolean }>
@@ -9,17 +9,11 @@ export default function SpendChart({ data }: SpendChartProps) {
     <div className="absolute bottom-0 w-full p-6 bg-[#faf3e6]/95 backdrop-blur-md border-t border-[#735c00]/20 z-20">
       <div className="flex justify-between items-end mb-2">
         <span className="font-cinzel text-sm text-[#2c1810]">Mischief Volume</span>
-        <span className="font-crimson text-xs text-[#735c00]">Last 7 Days</span>
+        <span className="font-mono text-xs text-[#735c00]">Last 7 Days</span>
       </div>
       <div className="h-24 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
-            <defs>
-              <linearGradient id="goldGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#735c00" stopOpacity={0.1} />
-                <stop offset="100%" stopColor="#735c00" stopOpacity={0} />
-              </linearGradient>
-            </defs>
             <XAxis dataKey="day" hide />
             <YAxis hide />
             <Tooltip

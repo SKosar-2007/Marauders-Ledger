@@ -6,5 +6,6 @@ export function useAudio(anomalyId: string) {
     queryKey: ['audio', anomalyId],
     queryFn: () => getAudio(anomalyId),
     enabled: !!anomalyId,
+    retry: false,
   })
 }

@@ -12,7 +12,7 @@ const TABS = [
 
 export default function FilterTabs({ activeTab, onTabChange }: FilterTabsProps) {
   return (
-    <div className="flex gap-4 mt-6 overflow-x-auto pb-2">
+    <div className="flex gap-3 mt-4 overflow-x-auto pb-2">
       {TABS.map((tab) => (
         <button
           key={tab.id}

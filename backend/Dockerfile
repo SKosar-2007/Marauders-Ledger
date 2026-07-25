@@ -1,13 +1,12 @@
-FROM python:3.12-slim
+FROM python:3.9-slim
 
 WORKDIR /app
 
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir 'protobuf>=6.33.5' actian-vectorai-client
 
-COPY . .
+COPY models/ models/
+COPY app/ app/
 
 EXPOSE 8000
 

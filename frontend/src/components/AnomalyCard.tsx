@@ -35,16 +35,12 @@ export default function AnomalyCard({ anomaly, index }: AnomalyCardProps) {
       onClick={() => navigate(`/anomaly/${anomaly.anomaly_id}`)}
     >
       <div className="absolute inset-0 rounded-lg pointer-events-none shadow-[inset_1px_1px_0_rgba(212,175,55,0.4)]" />
-
       <div className="flex justify-between items-start mb-3">
         <SeverityBadge severity={anomaly.severity} />
-        <span className="font-crimson text-xs text-[#504440]">
-          {anomaly.triggered_rules.length > 0
-            ? anomaly.triggered_rules.join(', ')
-            : `${anomaly.hour}:00`}
+        <span className="font-mono text-xs text-[#504440]">
+          {anomaly.hour}:00
         </span>
       </div>
-
       <h3 className="font-crimson text-base font-semibold text-[#2c1810] mb-2">
         {anomaly.merchant}
       </h3>
@@ -53,7 +49,6 @@ export default function AnomalyCard({ anomaly, index }: AnomalyCardProps) {
           ? `Triggered: ${anomaly.triggered_rules.map(r => r.replace(/_/g, ' ')).join(', ')}`
           : `Transaction of ₹${anomaly.amount.toFixed(2)} in ${anomaly.category}`}
       </p>
-
       <div className="flex items-center justify-between border-t border-[#735c00]/20 pt-3">
         <span className="font-crimson text-xs text-[#735c00] flex items-center gap-1">
           <span className="material-symbols-outlined text-[16px]">location_on</span>

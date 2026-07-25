@@ -1,5 +1,6 @@
 node_modules/
 .env
+.env.local
 __pycache__/
 *.pyc
 *.pkl
@@ -7,3 +8,6 @@ __pycache__/
 dist/
 build/
 .vite/
+backend/venv/
+backend/marauders.db
+*.log

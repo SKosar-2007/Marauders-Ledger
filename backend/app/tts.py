@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
 from pathlib import Path
+from typing import Optional
 
 import httpx
 from dotenv import load_dotenv
@@ -10,7 +13,7 @@ API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 _VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 
 
-def generate_audio(text: str) -> bytes | None:
+def generate_audio(text: str) -> Optional[bytes]:
     if not API_KEY or API_KEY == "your_key_here":
         return None
 
