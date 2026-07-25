@@ -68,6 +68,19 @@ def create_upload_batch(user_id: str, txn_count: int) -> str:
     return batch_id
 
 
+def update_batch_status(batch_id: str, status: str) -> None:
+    conn = _get_conn()
+    try:
+        conn.execute(
+            "UPDATE upload_batches SET status = ? WHERE batch_id = ?",
+            (status, batch_id),
+        )
+        conn.commit()
+    finally:
+        if not _USE_SQLITE:
+            conn.close()
+
+
 def _clean_txn(txn: dict) -> tuple:
     return (
         txn["amount"],
@@ -79,14 +92,14 @@ def _clean_txn(txn: dict) -> tuple:
     )
 
 
-def insert_transactions(txns: list[dict], user_id: str) -> list[str]:
+def insert_transactions(txns: list[dict], user_id: str, batch_id: str) -> list[str]:
     ids: list[str] = []
     conn = _get_conn()
     try:
         for txn in txns:
             cur = conn.execute(
-                "INSERT INTO transactions (user_id, amount, category, merchant, hour, day, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (user_id, *_clean_txn(txn)),
+                "INSERT INTO transactions (user_id, batch_id, amount, category, merchant, hour, day, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (user_id, batch_id, *_clean_txn(txn)),
             )
             ids.append(str(cur.lastrowid))
         conn.commit()
@@ -94,6 +107,18 @@ def insert_transactions(txns: list[dict], user_id: str) -> list[str]:
         if not _USE_SQLITE:
             conn.close()
     return ids
+
+
+def get_transactions_by_batch(batch_id: str) -> list[dict]:
+    conn = _get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM transactions WHERE batch_id = ? ORDER BY timestamp", (batch_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        if not _USE_SQLITE:
+            conn.close()
 
 
 def insert_anomalies(anomalies: list[dict], user_id: str) -> None:

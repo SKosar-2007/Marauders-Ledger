@@ -8,15 +8,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import (
     create_upload_batch,
+    get_transactions_by_batch,
     init_db,
+    insert_anomalies,
     insert_transactions,
+    update_batch_status,
 )
+from app.inference import detect_anomalies, load_models
 from app.schemas import AnomalyResult, BatchResponse, HealthResponse
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    load_models("models")
     yield
 
 
@@ -64,15 +69,31 @@ async def upload_csv(file: UploadFile = File(...)):  # noqa: B008
     txns = df.to_dict(orient="records")
     user_id = "default"
 
-    txn_ids = await asyncio.to_thread(insert_transactions, txns, user_id)
-    batch_id = await asyncio.to_thread(create_upload_batch, user_id, len(txn_ids))
+    batch_id = await asyncio.to_thread(create_upload_batch, user_id, len(txns))
+    txn_ids = await asyncio.to_thread(insert_transactions, txns, user_id, batch_id)
 
     return BatchResponse(batch_id=batch_id, status="processing", txn_count=len(txn_ids))
 
 
 @app.post("/api/analyze")
 async def analyze_batch(batch_id: str):
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+    txns = await asyncio.to_thread(get_transactions_by_batch, batch_id)
+    if not txns:
+        raise HTTPException(status_code=404, detail="Batch not found")
+
+    results = await asyncio.to_thread(detect_anomalies, txns)
+    anomalies = [r for r in results if r["is_anomaly"]]
+
+    if anomalies:
+        await asyncio.to_thread(insert_anomalies, anomalies, "default")
+
+    await asyncio.to_thread(update_batch_status, batch_id, "completed")
+
+    return {
+        "anomalies_found": len(anomalies),
+        "total_txns": len(txns),
+        "status": "completed",
+    }
 
 
 @app.get("/api/anomalies", response_model=list[AnomalyResult])

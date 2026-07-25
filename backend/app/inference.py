@@ -30,6 +30,14 @@ FIT_STATS = None
 TRAIN_STATS = None
 
 
+def _try_load(path):
+    try:
+        return joblib.load(path)
+    except Exception as e:  # noqa: BLE001
+        print(f"  Warning: failed to load {path}: {e}")
+        return None
+
+
 def load_models(model_dir: str = "models"):
     global SCALER, FEATURES, METADATA
     global UNSUP_MODELS, FIT_STATS, TRAIN_STATS, _LOADED
@@ -37,19 +45,24 @@ def load_models(model_dir: str = "models"):
     for name in ["rf", "gb", "xgb", "lgbm"]:
         path = f"{model_dir}/{name}_model.pkl"
         if os.path.exists(path):
-            MODELS[name] = joblib.load(path)
+            model = _try_load(path)
+            if model is not None:
+                MODELS[name] = model
 
     if not MODELS:
         for name in ["rf", "gb"]:
-            MODELS[name] = joblib.load(f"{model_dir}/{name}_model.pkl")
+            model = _try_load(f"{model_dir}/{name}_model.pkl")
+            if model is not None:
+                MODELS[name] = model
 
-    SCALER = joblib.load(f"{model_dir}/scaler.pkl")
-    FEATURES = joblib.load(f"{model_dir}/feature_columns.pkl")
+    SCALER = _try_load(f"{model_dir}/scaler.pkl")
+    FEATURES = _try_load(f"{model_dir}/feature_columns.pkl")
 
-    iso = joblib.load(f"{model_dir}/anomaly_model.pkl")
-    lof = joblib.load(f"{model_dir}/lof_model.pkl")
-    ocsvm = joblib.load(f"{model_dir}/ocsvm_model.pkl")
-    UNSUP_MODELS = (iso, lof, ocsvm)
+    iso = _try_load(f"{model_dir}/anomaly_model.pkl")
+    lof = _try_load(f"{model_dir}/lof_model.pkl")
+    ocsvm = _try_load(f"{model_dir}/ocsvm_model.pkl")
+    unsup = [m for m in (iso, lof, ocsvm) if m is not None]
+    UNSUP_MODELS = tuple(unsup) if unsup else None
 
     with open(f"{model_dir}/model_metadata.json") as f:
         METADATA = json.load(f)
@@ -272,8 +285,15 @@ def detect_anomalies(transactions: list[dict], threshold: float | None = None) -
 
     df = engineer_features(df, fit_stats=FIT_STATS)
 
-    X_base = SCALER.transform(df[FEATURES])
-    X_ext = add_unsupervised_features(X_base, UNSUP_MODELS)
+    if SCALER is not None and FEATURES is not None:
+        X_base = SCALER.transform(df[FEATURES])
+    else:
+        X_base = df.select_dtypes(include=[np.number]).values
+
+    if UNSUP_MODELS:
+        X_ext = add_unsupervised_features(X_base, UNSUP_MODELS)
+    else:
+        X_ext = X_base
 
     rule_scores = np.zeros(len(df))
     for i, (_, row) in enumerate(df.iterrows()):
@@ -285,11 +305,12 @@ def detect_anomalies(transactions: list[dict], threshold: float | None = None) -
     for name, model in MODELS.items():
         probs[name] = model.predict_proba(X_final)[:, 1]
 
+    n_models = len(probs)
     weights = {"rf": 0.20, "gb": 0.20, "xgb": 0.30, "lgbm": 0.30}
     total_w = 0
     ensemble_prob = np.zeros(len(X_final))
     for name, p in probs.items():
-        w = weights.get(name, 1.0 / len(probs))
+        w = weights.get(name, 1.0 / n_models)
         ensemble_prob += w * p
         total_w += w
     ensemble_prob /= total_w

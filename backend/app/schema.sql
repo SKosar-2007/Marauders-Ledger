@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS transactions (
     txn_id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL REFERENCES users(user_id),
+    batch_id TEXT NOT NULL REFERENCES upload_batches(batch_id),
     amount REAL NOT NULL,
     category TEXT NOT NULL,
     merchant TEXT NOT NULL,
