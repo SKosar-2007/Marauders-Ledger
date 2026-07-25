@@ -13,17 +13,20 @@ class Transaction(BaseModel):
 
 
 class AnomalyResult(BaseModel):
-    txn_id: str
+    anomaly_id: int
+    txn_id: str | None = None
     amount: float
     category: str
     merchant: str
     hour: int
-    isolation_score: float
-    rule_score: float
-    final_score: float
+    day: int | None = None
+    isolation_score: float = 0
+    rule_score: float = 0
+    final_score: float = 0
     is_anomaly: bool
     severity: str
     triggered_rules: list[str]
+    detected_at: datetime | None = None
 
 
 class BatchResponse(BaseModel):

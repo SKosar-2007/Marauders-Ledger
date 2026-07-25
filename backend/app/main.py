@@ -8,6 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import (
     create_upload_batch,
+    get_anomalies,
+    get_anomaly_by_id,
     get_transactions_by_batch,
     init_db,
     insert_anomalies,
@@ -96,14 +98,37 @@ async def analyze_batch(batch_id: str):
     }
 
 
+def _row_to_anomaly(row: dict) -> dict:
+    return {
+        "anomaly_id": row["anomaly_id"],
+        "txn_id": row.get("txn_id"),
+        "amount": row["amount"],
+        "category": row["category"],
+        "merchant": row["merchant"],
+        "hour": row["hour"],
+        "day": row.get("day"),
+        "isolation_score": row.get("isolation_score", 0),
+        "rule_score": row.get("rule_score", 0),
+        "final_score": row.get("final_score", 0),
+        "is_anomaly": bool(row["is_anomaly"]),
+        "severity": row["severity"],
+        "triggered_rules": row["triggered_rules"].split(",") if row.get("triggered_rules") else [],
+        "detected_at": row.get("detected_at"),
+    }
+
+
 @app.get("/api/anomalies", response_model=list[AnomalyResult])
-async def get_anomalies(user_id: str | None = None, severity: str | None = None):
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+async def list_anomalies(user_id: str | None = None, severity: str | None = None):
+    rows = await asyncio.to_thread(get_anomalies, user_id, severity)
+    return [_row_to_anomaly(r) for r in rows]
 
 
 @app.get("/api/anomalies/{anomaly_id}", response_model=AnomalyResult)
-async def get_anomaly(anomaly_id: str):
-    raise HTTPException(status_code=501, detail="Not implemented yet")
+async def get_anomaly(anomaly_id: int):
+    row = await asyncio.to_thread(get_anomaly_by_id, anomaly_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Anomaly not found")
+    return _row_to_anomaly(row)
 
 
 @app.get("/api/narratives/{anomaly_id}")

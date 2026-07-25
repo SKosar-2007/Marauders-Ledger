@@ -126,7 +126,7 @@ def insert_anomalies(anomalies: list[dict], user_id: str) -> None:
     try:
         for a in anomalies:
             conn.execute(
-                "INSERT INTO anomalies (user_id, txn_id, amount, category, merchant, hour, isolation_score, rule_score, final_score, is_anomaly, severity, triggered_rules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO anomalies (user_id, txn_id, amount, category, merchant, hour, day, isolation_score, rule_score, final_score, is_anomaly, severity, triggered_rules) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     user_id,
                     a.get("txn_id"),
@@ -134,6 +134,7 @@ def insert_anomalies(anomalies: list[dict], user_id: str) -> None:
                     a["category"],
                     a["merchant"],
                     a["hour"],
+                    a.get("day"),
                     a.get("isolation_score", 0),
                     a.get("rule_score", 0),
                     a.get("final_score", 0),
@@ -160,13 +161,31 @@ def get_user_transactions(user_id: str) -> list[dict]:
             conn.close()
 
 
-def get_user_anomalies(user_id: str) -> list[dict]:
+def get_anomalies(user_id: str | None = None, severity: str | None = None) -> list[dict]:
     conn = _get_conn()
     try:
-        rows = conn.execute(
-            "SELECT * FROM anomalies WHERE user_id = ? AND is_anomaly = 1", (user_id,)
-        ).fetchall()
+        parts = ["SELECT * FROM anomalies WHERE is_anomaly = 1"]
+        params: list = []
+        if user_id:
+            parts.append("AND user_id = ?")
+            params.append(user_id)
+        if severity:
+            parts.append("AND severity = ?")
+            params.append(severity)
+        rows = conn.execute(" ".join(parts), params).fetchall()
         return [dict(r) for r in rows]
+    finally:
+        if not _USE_SQLITE:
+            conn.close()
+
+
+def get_anomaly_by_id(anomaly_id: int) -> dict | None:
+    conn = _get_conn()
+    try:
+        row = conn.execute(
+            "SELECT * FROM anomalies WHERE anomaly_id = ?", (anomaly_id,)
+        ).fetchone()
+        return dict(row) if row else None
     finally:
         if not _USE_SQLITE:
             conn.close()

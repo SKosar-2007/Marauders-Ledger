@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS anomalies (
     category TEXT NOT NULL,
     merchant TEXT NOT NULL,
     hour INTEGER NOT NULL,
+    day INTEGER,
     isolation_score REAL DEFAULT 0,
     rule_score REAL DEFAULT 0,
     final_score REAL DEFAULT 0,
