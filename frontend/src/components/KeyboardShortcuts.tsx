@@ -28,7 +28,7 @@ export default function KeyboardShortcuts() {
     <>
       {/* Floating trigger */}
       <button onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-20 z-[200] w-9 h-9 rounded-full bg-[#faf3e6] border border-[#735c00]/20 shadow-md flex items-center justify-center hover:bg-[#f4e0bb] transition-colors no-print"
+        className="fixed bottom-5 left-5 z-[200] w-9 h-9 rounded-full bg-[#faf3e6] border border-[#735c00]/20 shadow-md flex items-center justify-center hover:bg-[#f4e0bb] transition-colors no-print"
         title="Keyboard shortcuts (⌘/)">
         <span className="material-symbols-outlined text-[18px] text-[#735c00]">keyboard</span>
       </button>

@@ -33,7 +33,9 @@ def test_health(client: httpx.Client) -> bool:
 
 
 def test_upload(client: httpx.Client, headers: dict[str, str]) -> str:
-    with open("../data/compromised.csv", "rb") as f:
+    data_dir = os.path.join(os.path.dirname(__file__), "..", "data")
+    csv_path = os.path.join(data_dir, "compromised.csv")
+    with open(csv_path, "rb") as f:
         r = client.post(
             f"{BASE}/api/upload",
             files={"file": ("compromised.csv", f, "text/csv")},
@@ -47,14 +49,16 @@ def test_upload(client: httpx.Client, headers: dict[str, str]) -> str:
     return data["batch_id"]
 
 
-def test_analyze(client: httpx.Client, batch_id: str, headers: dict[str, str]) -> int:
-    r = client.post(f"{BASE}/api/analyze?batch_id={batch_id}", headers=headers)
-    assert r.status_code == 200, f"analyze status {r.status_code}: {r.text}"
-    data = r.json()
-    assert data["status"] == "completed"
-    assert data["anomalies_found"] > 0
-    print(f"  [PASS] /api/analyze -> {data['anomalies_found']} anomalies found")
-    return data["anomalies_found"]
+def test_batch_completes(client: httpx.Client, batch_id: str, headers: dict[str, str]) -> int:
+    for _ in range(30):
+        r = client.get(f"{BASE}/api/batches/{batch_id}/progress", headers=headers)
+        assert r.status_code == 200, f"batch progress status {r.status_code}: {r.text}"
+        data = r.json()
+        if data["status"] == "completed":
+            print(f"  [PASS] /api/batches/{batch_id}/progress -> {data['anomalies_found']} anomalies found")
+            return data["anomalies_found"]
+        time.sleep(1)
+    raise AssertionError(f"Batch {batch_id} did not complete within 30s")
 
 
 def test_get_anomalies(client: httpx.Client, headers: dict[str, str]) -> list:
@@ -124,12 +128,12 @@ def main():
         print(f"\nResults: {passed} passed, {failed} failed")
         sys.exit(1)
 
-    # Analyze
+    # Wait for batch to complete (upload processes synchronously when Celery unavailable)
     try:
-        test_analyze(client, batch_id, headers)
+        test_batch_completes(client, batch_id, headers)
         passed += 1
     except Exception as e:
-        print(f"  [FAIL] Analyze: {e}")
+        print(f"  [FAIL] Batch completion: {e}")
         failed += 1
 
     # Get anomalies

@@ -185,3 +185,56 @@ def get_spending_by_day(user_id: int) -> list[dict]:
 
 def count_anomalies_by_batch(batch_id: str) -> int:
     return vector_store.count_anomalies_by_batch(batch_id)
+
+
+# ── Vector Search (VectorAI-only features) ──
+
+def filtered_search_transactions(
+    query_vector=None,
+    vector_name: str = "numerical",
+    category=None, merchant=None,
+    amount_min=None, amount_max=None,
+    batch_id=None, user_id=None,
+    limit: int = 20,
+):
+    return vector_store.filtered_search_transactions(
+        query_vector=query_vector, vector_name=vector_name,
+        category=category, merchant=merchant,
+        amount_min=amount_min, amount_max=amount_max,
+        batch_id=batch_id, user_id=user_id,
+        limit=limit,
+    )
+
+
+def filtered_search_anomalies(
+    query_vector=None,
+    vector_name: str = "numerical",
+    category=None, merchant=None,
+    severity=None, status=None,
+    batch_id=None, user_id=None,
+    limit: int = 20,
+):
+    return vector_store.filtered_search_anomalies(
+        query_vector=query_vector, vector_name=vector_name,
+        category=category, merchant=merchant,
+        severity=severity, status=status,
+        batch_id=batch_id, user_id=user_id,
+        limit=limit,
+    )
+
+
+def hybrid_search_transactions(
+    query_text: str,
+    query_vector=None,
+    category=None, user_id=None,
+    limit: int = 20,
+):
+    return vector_store.hybrid_search_transactions(
+        query_text=query_text, query_vector=query_vector,
+        category=category, user_id=user_id,
+        limit=limit,
+    )
+
+
+def search_narratives(query_text: str, limit: int = 20):
+    return vector_store.search_narratives(query_text=query_text, limit=limit)

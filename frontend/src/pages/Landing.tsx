@@ -34,14 +34,6 @@ export default function Landing() {
     id: a.anomaly_id,
   }))
 
-  const fallbackInvestigations = [
-    { date: 'JUL 25, 2026', title: "Godric's Hollow Expenses", desc: 'Anomalous spike in protective charm material costs noted prior to incident.', severity: 'high', id: '' },
-    { date: 'JUL 24, 2026', title: "Zonko's Bulk Order", desc: 'Quarterly audit of dungbomb acquisitions for term commencement.', severity: 'medium', id: '' },
-    { date: 'JUL 23, 2026', title: 'Three Broomsticks Tab', desc: 'Outstanding butterbeer ledger reconciliation required.', severity: 'low', id: '' },
-  ]
-
-  const investigations = recentInvestigations.length > 0 ? recentInvestigations : fallbackInvestigations
-
   return (
     <div className="min-h-screen ml-[72px]">
       <Header />
@@ -86,42 +78,44 @@ export default function Landing() {
             </div>
           </motion.div>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6 }}
-            className="w-full mt-32 max-w-[1200px] z-10 px-4 lg:px-0">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent via-[#735c00]/30 to-[#735c00]/30" />
-              <h2 className="font-cinzel text-sm text-[#2c1810] tracking-widest uppercase">Recent Investigations</h2>
-              <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent via-[#735c00]/30 to-[#735c00]/30" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {investigations.map((item, i) => (
-                <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 + i * 0.1 }}
-                  className="group relative bg-[#faf3e6] p-8 parchment-edge shadow-[0_8px_30px_rgba(44,24,16,0.05)] hover:-translate-y-2 transition-all duration-500 cursor-pointer"
-                  onClick={() => item.id && navigate(`/anomaly/${item.id}`)}>
-                  <div className="absolute top-0 left-6 w-[2px] h-full bg-[#dc2626]/20 mix-blend-multiply" />
-                  <div className="absolute inset-0 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.2)] pointer-events-none" />
-                  <div className="relative z-10 pl-4 flex flex-col h-full gap-4">
-                    <div className="flex justify-between items-start">
-                      <span className="font-mono text-xs text-[#504440]">{item.date}</span>
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${item.severity === 'high' ? 'bg-red-50' : item.severity === 'medium' ? 'bg-amber-50' : 'bg-stone-50'}`}>
-                        <span className={`material-symbols-outlined text-[14px] ${item.severity === 'high' ? 'text-red-700' : item.severity === 'medium' ? 'text-amber-700' : 'text-stone-600'}`}>
-                          {item.severity === 'high' ? 'warning' : item.severity === 'medium' ? 'visibility' : 'receipt_long'}
-                        </span>
+          {recentInvestigations.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.6 }}
+              className="w-full mt-32 max-w-[1200px] z-10 px-4 lg:px-0">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="h-[1px] flex-grow bg-gradient-to-r from-transparent via-[#735c00]/30 to-[#735c00]/30" />
+                <h2 className="font-cinzel text-sm text-[#2c1810] tracking-widest uppercase">Recent Investigations</h2>
+                <div className="h-[1px] flex-grow bg-gradient-to-l from-transparent via-[#735c00]/30 to-[#735c00]/30" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {recentInvestigations.map((item, i) => (
+                  <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 + i * 0.1 }}
+                    className="group relative bg-[#faf3e6] p-8 parchment-edge shadow-[0_8px_30px_rgba(44,24,16,0.05)] hover:-translate-y-2 transition-all duration-500 cursor-pointer"
+                    onClick={() => item.id && navigate(`/anomaly/${item.id}`)}>
+                    <div className="absolute top-0 left-6 w-[2px] h-full bg-[#dc2626]/20 mix-blend-multiply" />
+                    <div className="absolute inset-0 shadow-[inset_0_0_0_1px_rgba(212,175,55,0.2)] pointer-events-none" />
+                    <div className="relative z-10 pl-4 flex flex-col h-full gap-4">
+                      <div className="flex justify-between items-start">
+                        <span className="font-mono text-xs text-[#504440]">{item.date}</span>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${item.severity === 'high' ? 'bg-red-50' : item.severity === 'medium' ? 'bg-amber-50' : 'bg-stone-50'}`}>
+                          <span className={`material-symbols-outlined text-[14px] ${item.severity === 'high' ? 'text-red-700' : item.severity === 'medium' ? 'text-amber-700' : 'text-stone-600'}`}>
+                            {item.severity === 'high' ? 'warning' : item.severity === 'medium' ? 'visibility' : 'receipt_long'}
+                          </span>
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-crimson text-base font-semibold text-[#2c1810] mb-1">{item.title}</h4>
+                        <p className="font-crimson text-sm text-[#504440] line-clamp-2">{item.desc}</p>
+                      </div>
+                      <div className="mt-auto pt-4 border-t border-[#f4e0bb] flex items-center justify-between">
+                        <span className="font-crimson text-xs text-[#735c00] uppercase">View Scroll</span>
+                        <span className="material-symbols-outlined text-[#735c00] text-[18px] group-hover:translate-x-1 transition-transform">arrow_right_alt</span>
                       </div>
                     </div>
-                    <div>
-                      <h4 className="font-crimson text-base font-semibold text-[#2c1810] mb-1">{item.title}</h4>
-                      <p className="font-crimson text-sm text-[#504440] line-clamp-2">{item.desc}</p>
-                    </div>
-                    <div className="mt-auto pt-4 border-t border-[#f4e0bb] flex items-center justify-between">
-                      <span className="font-crimson text-xs text-[#735c00] uppercase">View Scroll</span>
-                      <span className="material-symbols-outlined text-[#735c00] text-[18px] group-hover:translate-x-1 transition-transform">arrow_right_alt</span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
       </main>
       <Footer />

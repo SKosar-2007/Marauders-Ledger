@@ -1,15 +1,13 @@
-# The Marauder's Ledger
+# OmniLedger
 
-> *"I solemnly swear that I am up to no good."*
-
-An AI-powered financial anomaly detection system with a Harry Potter theme. Upload your bank statements and watch the Marauder's Map reveal where mischief is afoot in your finances.
+An AI-powered financial anomaly detection system. Upload transaction data — Isolation Forest scores every line, Gemini narrates each anomaly, ElevenLabs reads them aloud.
 
 ## Live Demo
 
 1. Open [http://localhost:5173](http://localhost:5173)
-2. Drag & drop `data/compromised.csv` onto the upload zone
-3. Watch the Marauder's Map populate with detected anomalies
-4. Click any footprint to investigate — get AI narration + voice
+2. Drag & drop a CSV onto the upload zone
+3. View the cluster map with detected anomalies
+4. Click any anomaly to investigate — get AI narration + voice
 
 ## Architecture
 
@@ -65,13 +63,13 @@ Ensemble of 7 anomaly detection models:
 | Route | Description |
 |-------|-------------|
 | `/` | Landing — upload CSV or load sample data |
-| `/dashboard` | Marauder's Map with anomaly footprints |
+| `/dashboard` | Spending cluster map with anomaly feed |
 | `/anomaly/:id` | Detail — gauges, narrative, audio, tethered txns |
 | `/ledger` | Historical data table with search/filter |
-| `/vault` | Gringotts bank statement overview |
-| `/pensieve` | Deep analysis — spending categories, risk breakdown |
-| `/owl-post` | Notifications with read/unread states |
-| `/profile` | Wizard's dossier with stats and skills |
+| `/vault` | Asset reserves overview |
+| `/analysis` | Deep analysis — spending categories, risk breakdown |
+| `/activity` | Activity feed with security events |
+| `/settings` | Workspace configuration |
 
 ## Quick Start
 

@@ -75,6 +75,7 @@ export const getAnomalies = async (severity?: string, offset = 0, limit = 50) =>
       severity: 'low' | 'medium' | 'high' | 'none'
       triggered_rules: string[]
       detected_at?: string
+      status?: string
     }>
     total: number
     offset: number

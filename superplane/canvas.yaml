@@ -1,148 +1,189 @@
-name: Marauders Ledger Pipeline
-description: Orchestration canvas for The Marauder's Ledger anomaly detection pipeline
+apiVersion: v1
+kind: Canvas
+metadata:
+  id: 6400b0b3-2a35-425e-b499-8b4c65984dab
+  name: OmniLedger Pipeline
+spec:
+  edges:
+    - sourceId: webhook-csv-uploaded
+      targetId: http-validate-csv
+      channel: default
+    - sourceId: http-validate-csv
+      targetId: http-feature-engineering
+      channel: default
+    - sourceId: http-validate-csv
+      targetId: http-rule-engine
+      channel: default
+    - sourceId: http-feature-engineering
+      targetId: http-ml-ensemble
+      channel: default
+    - sourceId: http-ml-ensemble
+      targetId: http-score-fusion
+      channel: default
+    - sourceId: http-rule-engine
+      targetId: http-score-fusion
+      channel: default
+    - sourceId: http-score-fusion
+      targetId: http-severity-classification
+      channel: default
+    - sourceId: http-severity-classification
+      targetId: http-store-anomalies
+      channel: default
+    - sourceId: http-severity-classification
+      targetId: http-narrative-generation
+      channel: default
+    - sourceId: http-narrative-generation
+      targetId: http-tts-generation
+      channel: default
+    - sourceId: http-narrative-generation
+      targetId: http-store-narratives
+      channel: default
+    - sourceId: http-tts-generation
+      targetId: http-store-narratives
+      channel: default
+    - sourceId: http-severity-classification
+      targetId: http-dashboard-update
+      channel: default
 
-nodes:
-  csv_upload:
-    type: input
-    label: CSV Upload
-    description: User uploads CSV bank statement
-    outputs: [raw_transactions]
+  nodes:
+    - id: webhook-csv-uploaded
+      name: CSV Uploaded
+      type: TYPE_TRIGGER
+      component: webhook
+      paused: false
+      configuration:
+        method: POST
+        path: /marauders/csv-uploaded
+        customName: "CSV Uploaded — {{ now() }}"
 
-  validate_csv:
-    type: process
-    label: Validate CSV
-    description: Check required columns (amount, category, merchant, hour, day)
-    inputs: [raw_transactions]
-    outputs: [validated_transactions]
-    on_failure: reject
+    - id: http-validate-csv
+      name: Validate CSV
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/validate"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ trigger.body }}"
+        customName: "Validate batch {{ trigger.body.batch_id }}"
 
-  feature_engineering:
-    type: process
-    label: Feature Engineering
-    description: Extract features for ML models (amount, temporal, categorical)
-    inputs: [validated_transactions]
-    outputs: [feature_vectors]
+    - id: http-feature-engineering
+      name: Feature Engineering
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/features"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-validate-csv.output }}"
+        customName: "Extract features for batch {{ trigger.body.batch_id }}"
 
-  ml_ensemble:
-    type: process
-    label: ML Ensemble Detection
-    description: Run 7-model ensemble (RF, GB, XGB, LGBM, Isolation Forest, LOF, OCSVM)
-    inputs: [feature_vectors]
-    outputs: [anomaly_scores]
+    - id: http-ml-ensemble
+      name: ML Ensemble Detection
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/ml-detect"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-feature-engineering.output }}"
+        customName: "ML detect batch {{ trigger.body.batch_id }}"
 
-  rule_engine:
-    type: process
-    label: Rule Engine
-    description: Apply business rules (amount spike, unusual hour, new merchant, rolling avg)
-    inputs: [validated_transactions]
-    outputs: [rule_scores]
+    - id: http-rule-engine
+      name: Rule Engine
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/rules"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-validate-csv.output }}"
+        customName: "Rules for batch {{ trigger.body.batch_id }}"
 
-  score_fusion:
-    type: process
-    label: Score Fusion
-    description: Combine ML and rule scores into final mischief score
-    inputs: [anomaly_scores, rule_scores]
-    outputs: [final_anomalies]
+    - id: http-score-fusion
+      name: Score Fusion
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/fuse"
+        headers: { "Content-Type": "application/json" }
+        body: '{ "ml_scores": {{ nodes.http-ml-ensemble.output }}, "rule_scores": {{ nodes.http-rule-engine.output }}, "batch_id": "{{ trigger.body.batch_id }}" }'
+        customName: "Fuse scores for batch {{ trigger.body.batch_id }}"
 
-  severity_classification:
-    type: process
-    label: Severity Classification
-    description: Classify anomalies as high (Dementor), medium (Boggart), low (Peeves)
-    inputs: [final_anomalies]
-    outputs: [classified_anomalies]
+    - id: http-severity-classification
+      name: Severity Classification
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/classify"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-score-fusion.output }}"
+        customName: "Classify batch {{ trigger.body.batch_id }}"
 
-  store_anomalies:
-    type: output
-    label: Store in SQLite
-    description: Persist anomalies to database
-    inputs: [classified_anomalies]
+    - id: http-store-anomalies
+      name: Store Anomalies
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/store"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-severity-classification.output }}"
+        customName: "Store anomalies for batch {{ trigger.body.batch_id }}"
 
-  narrative_generation:
-    type: process
-    label: Gemini AI Narration
-    description: Generate narrative explanation via Gemini AI
-    inputs: [classified_anomalies]
-    outputs: [narratives]
+    - id: http-narrative-generation
+      name: Gemini AI Narration
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/narrate"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-severity-classification.output }}"
+        customName: "Narrate anomalies for batch {{ trigger.body.batch_id }}"
 
-  tts_generation:
-    type: process
-    label: ElevenLabs TTS
-    description: Convert narratives to audio via ElevenLabs
-    inputs: [narratives]
-    outputs: [audio_files]
+    - id: http-tts-generation
+      name: ElevenLabs TTS
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/tts"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-narrative-generation.output }}"
+        customName: "TTS for batch {{ trigger.body.batch_id }}"
 
-  store_narratives:
-    type: output
-    label: Store Narratives
-    description: Persist narratives and audio to database
-    inputs: [narratives, audio_files]
+    - id: http-store-narratives
+      name: Store Narratives & Audio
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/store-narratives"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-tts-generation.output }}"
+        customName: "Store narratives for batch {{ trigger.body.batch_id }}"
 
-  dashboard_update:
-    type: output
-    label: Dashboard Update
-    description: Push real-time updates to frontend
-    inputs: [classified_anomalies, narratives]
-
-edges:
-  - from: csv_upload
-    to: validate_csv
-
-  - from: validate_csv
-    to: feature_engineering
-
-  - from: validate_csv
-    to: rule_engine
-
-  - from: feature_engineering
-    to: ml_ensemble
-
-  - from: ml_ensemble
-    to: score_fusion
-
-  - from: rule_engine
-    to: score_fusion
-
-  - from: score_fusion
-    to: severity_classification
-
-  - from: severity_classification
-    to: store_anomalies
-
-  - from: severity_classification
-    to: narrative_generation
-
-  - from: narrative_generation
-    to: tts_generation
-
-  - from: narrative_generation
-    to: store_narratives
-
-  - from: tts_generation
-    to: store_narratives
-
-  - from: severity_classification
-    to: dashboard_update
-
-  - from: narratives
-    to: dashboard_update
-
-config:
-  version: "1.0"
-  pipeline:
-    max_retries: 3
-    timeout_seconds: 300
-    parallel: true
-  ml:
-    model_path: models/
-    ensemble_size: 7
-    anomaly_threshold: 0.5
-  ai:
-    provider: gemini
-    model: gemini-2.0-flash
-    fallback: template
-  tts:
-    provider: elevenlabs
-    fallback: silent
-  storage:
-    type: sqlite
-    path: marauders.db
+    - id: http-dashboard-update
+      name: Dashboard Update
+      type: TYPE_ACTION
+      component: http
+      paused: false
+      configuration:
+        method: POST
+        url: "http://backend:8000/api/pipeline/notify"
+        headers: { "Content-Type": "application/json" }
+        body: "{{ nodes.http-severity-classification.output }}"
+        customName: "Notify dashboard for batch {{ trigger.body.batch_id }}"

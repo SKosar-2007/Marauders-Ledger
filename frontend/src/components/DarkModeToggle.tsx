@@ -16,7 +16,7 @@ export default function DarkModeToggle() {
 
   return (
     <button onClick={() => setDark(!dark)}
-      className="fixed bottom-6 right-6 z-40 w-10 h-10 rounded-full bg-[#2c1810] shadow-lg flex items-center justify-center hover:bg-[#1a1a2e] transition-colors"
+      className="fixed top-4 right-4 z-[60] w-10 h-10 rounded-full bg-[#2c1810] shadow-lg flex items-center justify-center hover:bg-[#1a1a2e] transition-colors"
       title={dark ? 'Switch to Lumos' : 'Switch to Nox'}>
       <motion.span className="material-symbols-outlined text-[18px] text-[#d4af37]"
         animate={{ rotate: dark ? 180 : 0 }} transition={{ duration: 0.3 }}>

@@ -10,13 +10,6 @@ import SpendChart from '../components/SpendChart'
 import { useAnomalies } from '../hooks/useAnomalies'
 import { useSpendingByDay } from '../hooks/useSpending'
 
-const FALLBACK_CHART_DATA = [
-  { day: 'Mon', amount: 450 }, { day: 'Tue', amount: 320 },
-  { day: 'Wed', amount: 680, hasAnomaly: true }, { day: 'Thu', amount: 210 },
-  { day: 'Fri', amount: 890, hasAnomaly: true }, { day: 'Sat', amount: 540 },
-  { day: 'Sun', amount: 1200, hasAnomaly: true },
-]
-
 export default function Dashboard() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('all')
@@ -25,7 +18,7 @@ export default function Dashboard() {
 
   const chartData = spendingData && spendingData.length > 0
     ? spendingData.map((d) => ({ day: `Day ${d.day}`, amount: d.amount }))
-    : FALLBACK_CHART_DATA
+    : null
 
   const filtered = activeTab === 'all' ? anomalies : anomalies.filter((a: any) => a.category === activeTab)
 
@@ -101,7 +94,11 @@ export default function Dashboard() {
                 filtered.map((a: any, i: number) => <AnomalyCard key={a.anomaly_id} anomaly={a} index={i} />)
               )}
             </div>
-            <SpendChart data={chartData} />
+            {chartData ? <SpendChart data={chartData} /> : (
+              <div className="bg-[#faf3e6] rounded-xl p-4 shadow-md h-[180px] flex items-center justify-center">
+                <p className="font-crimson text-sm text-[#504440] italic">Upload a CSV to see spending trends</p>
+              </div>
+            )}
           </div>
         </div>
       </main>

@@ -11,6 +11,7 @@ import ScrollToTop from './components/ScrollToTop'
 import DarkModeToggle from './components/DarkModeToggle'
 import Onboarding from './components/Onboarding'
 import KeyboardShortcuts from './components/KeyboardShortcuts'
+import VoiceChatWidget from './components/VoiceChatWidget'
 
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const Landing = lazy(() => import('./pages/Landing'))
@@ -79,6 +80,7 @@ export default function App() {
               <ScrollToTop />
               <DarkModeToggle />
               <KeyboardShortcuts />
+              <VoiceChatWidget />
               <AnimatedRoutes />
             </AppProvider>
           </AuthProvider>

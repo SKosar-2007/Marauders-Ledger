@@ -1,0 +1,31 @@
+date,description,amount,category,merchant
+2024-10-01,Grocery run,-85.50,Food,Trader Joe's
+2024-10-01,Netflix subscription,-15.99,Entertainment,Netflix
+2024-10-02,Gas station,-52.30,Transport,Shell
+2024-10-02,Amazon purchase,-234.00,Shopping,Amazon
+2024-10-03,Restaurant dinner,-67.80,Food,Olive Garden
+2024-10-03,Electric bill,-145.00,Bills,City Power Co
+2024-10-04,Starbucks coffee,-5.50,Food,Starbucks
+2024-10-04,Uber ride,-32.40,Transport,Uber
+2024-10-05,Target shopping,-189.20,Shopping,Target
+2024-10-05,Internet bill,-79.99,Bills,Comcast
+2024-10-06,Movie tickets,-28.00,Entertainment,AMC Theaters
+2024-10-06,Pharmacy,-45.30,Other,CVS
+2024-10-07,Brunch outing,-42.00,Food,Local Diner
+2024-10-07,Phone bill,-89.00,Bills,AT&T
+2024-10-08,Online course,-299.00,Entertainment,Udemy
+2024-10-08,Clothing store,-156.00,Shopping,H&M
+2024-10-09,ATM withdrawal,-400.00,Other,Chase ATM
+2024-10-09,Pizza delivery,-24.50,Food,Domino's
+2024-10-10,Rent payment,-1800.00,Bills,Landlord
+2024-10-10,Steam game,-59.99,Entertainment,Steam
+2024-10-11,Unusual 3AM transaction,-4850.00,Shopping,UnknownMerchantX
+2024-10-11,Grocery delivery,-92.00,Food,Instacart
+2024-10-12,Rapid consecutive ATM,-200.00,Other,Chase ATM
+2024-10-12,Rapid consecutive ATM,-200.00,Other,Chase ATM
+2024-10-12,Rapid consecutive ATM,-200.00,Other,Chase ATM
+2024-10-12,Rapid consecutive ATM,-200.00,Other,Chase ATM
+2024-10-12,Rapid consecutive ATM,-200.00,Other,Chase ATM
+2024-10-13,Crypto exchange,-3500.00,Other,Coinbase
+2024-10-13,Sushi restaurant,-78.00,Food,Sushi Place
+2024-10-14,International wire,-5200.00,Other,ForeignBank Corp

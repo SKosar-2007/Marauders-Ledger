@@ -25,6 +25,8 @@ from app.database import (
     count_anomalies_by_batch,
     create_upload_batch,
     create_user,
+    filtered_search_anomalies,
+    filtered_search_transactions,
     get_anomalies,
     get_anomaly_by_id,
     get_batch_by_id,
@@ -36,10 +38,12 @@ from app.database import (
     get_transactions_by_user,
     get_transactions_by_user_all,
     get_user_by_email,
+    hybrid_search_transactions,
     init_db,
     insert_anomalies,
     insert_narrative,
     insert_transactions,
+    search_narratives,
     update_anomaly_status,
     update_batch_status,
     update_narrative_audio,
@@ -51,9 +55,16 @@ from app.schemas import (
     BatchProgressResponse,
     BatchResponse,
     HealthResponse,
+    HybridSearchQuery,
     NarrativeResponse,
+    NarrativeSearchQuery,
     PaginatedAnomalies,
     PaginatedTransactions,
+    SearchAnomaliesQuery,
+    SearchFilter,
+    SearchResultItem,
+    SearchResults,
+    SearchTransactionsQuery,
     TokenResponse,
     TransactionResult,
     UserLogin,
@@ -63,6 +74,7 @@ from app.schemas import (
 from app.tasks import process_upload
 from app.tts import generate_audio, stream_audio
 from app.chat import generate_chat_response
+from app.superplane import router as pipeline_router, trigger_superplane
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 
@@ -70,6 +82,8 @@ MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
 class ChatMessage(BaseModel):
     message: str
     history: Optional[list[dict]] = None
+    anomaly_id: Optional[int] = None
+    batch_id: Optional[str] = None
 
 _rate_limit_store: dict[str, list[float]] = defaultdict(list)
 _rate_limit_lock = threading.Lock()
@@ -99,7 +113,9 @@ def _check_rate_limit(ip: str) -> bool:
         _rate_limit_store[ip].append(now)
         if now - _last_rate_limit_cleanup > RATE_LIMIT_CLEANUP_INTERVAL:
             cutoff = now - RATE_LIMIT_WINDOW
-            _rate_limit_store = {k: v for k, v in _rate_limit_store.items() if v and v[-1] > cutoff}
+            stale = [k for k, v in _rate_limit_store.items() if not v or v[-1] <= cutoff]
+            for k in stale:
+                del _rate_limit_store[k]
             _last_rate_limit_cleanup = now
         return True
 
@@ -117,6 +133,8 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+
+app.include_router(pipeline_router)
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 app.add_middleware(
@@ -222,6 +240,8 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
             await asyncio.to_thread(insert_anomalies, anomalies, user_id)
         await asyncio.to_thread(update_batch_status, batch_id, "completed")
 
+    await asyncio.to_thread(trigger_superplane, batch_id, user_id)
+
     return BatchResponse(batch_id=batch_id, status="processing", txn_count=len(txn_ids))
 
 
@@ -244,6 +264,7 @@ def _row_to_anomaly(row: dict) -> dict:
         "triggered_rules": row["triggered_rules"] if isinstance(row.get("triggered_rules"), list) else
                           row["triggered_rules"].split(",") if row.get("triggered_rules") else [],
         "detected_at": row.get("detected_at"),
+        "status": row.get("status", "pending"),
     }
 
 
@@ -454,18 +475,120 @@ async def list_transactions(
 @app.post("/api/chat/message")
 async def chat_message(body: ChatMessage, current_user: dict = Depends(get_current_user)):
     response_text = await asyncio.to_thread(
-        generate_chat_response, body.message, body.history
+        generate_chat_response, body.message, body.history,
+        body.anomaly_id, body.batch_id, int(current_user["sub"]),
     )
 
     def generate():
         for chunk in stream_audio(response_text):
             yield chunk
 
+    safe_text = response_text.encode("ascii", errors="replace").decode("ascii")
     return StreamingResponse(
         generate(),
         media_type="audio/mpeg",
         headers={
-            "X-Chat-Response": response_text,
+            "X-Chat-Response": safe_text,
             "Cache-Control": "no-cache",
         },
     )
+
+
+# ── Vector Search — Filtered Search, Hybrid Fusion, Named Vectors ──
+
+@app.post("/api/search/transactions", response_model=SearchResults)
+async def search_api_transactions(body: SearchTransactionsQuery, current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
+    f = body.filters or SearchFilter()
+
+    query_vector = body.vector
+    if query_vector is None and body.text:
+        from app.vector_store import _encode_semantic
+        query_vector = _encode_semantic(body.text)
+
+    results = await asyncio.to_thread(
+        filtered_search_transactions,
+        query_vector=query_vector,
+        vector_name=body.vector_name,
+        category=f.category,
+        merchant=f.merchant,
+        amount_min=f.amount_min,
+        amount_max=f.amount_max,
+        batch_id=f.batch_id,
+        user_id=user_id,
+        limit=body.limit,
+    )
+    items = [
+        SearchResultItem(id=str(r.get("txn_id", r.get("id", ""))), score=r.get("score", 0.0), payload=r)
+        for r in results
+    ]
+    return SearchResults(items=items, total=len(items))
+
+
+@app.post("/api/search/anomalies", response_model=SearchResults)
+async def search_api_anomalies(body: SearchAnomaliesQuery, current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
+    f = body.filters or SearchFilter()
+
+    query_vector = body.vector
+    if query_vector is None and body.text:
+        from app.vector_store import _encode_semantic
+        query_vector = _encode_semantic(body.text)
+
+    results = await asyncio.to_thread(
+        filtered_search_anomalies,
+        query_vector=query_vector,
+        vector_name=body.vector_name,
+        category=f.category,
+        merchant=f.merchant,
+        severity=f.severity,
+        status=f.status,
+        batch_id=f.batch_id,
+        user_id=user_id,
+        limit=body.limit,
+    )
+    items = [
+        SearchResultItem(id=str(r.get("anomaly_id", r.get("id", ""))), score=r.get("score", 0.0), payload=r)
+        for r in results
+    ]
+    return SearchResults(items=items, total=len(items))
+
+
+@app.post("/api/search/hybrid", response_model=SearchResults)
+async def search_api_hybrid(body: HybridSearchQuery, current_user: dict = Depends(get_current_user)):
+    user_id = int(current_user["sub"])
+    f = body.filters or SearchFilter()
+
+    query_vector = body.vector
+    if query_vector is None:
+        from app.vector_store import _encode_semantic
+        query_vector = _encode_semantic(body.text)
+
+    results = await asyncio.to_thread(
+        hybrid_search_transactions,
+        query_text=body.text,
+        query_vector=query_vector,
+        category=f.category,
+        user_id=user_id,
+        limit=body.limit,
+    )
+    items = [
+        SearchResultItem(
+            id=str(r.get("txn_id", r.get("id", ""))),
+            score=r.get("score", 0.0),
+            fusion_score=r.get("fusion_score"),
+            payload={k: v for k, v in r.items() if not k.startswith("_")},
+        )
+        for r in results
+    ]
+    return SearchResults(items=items, total=len(items))
+
+
+@app.post("/api/search/narratives", response_model=SearchResults)
+async def search_api_narratives(body: NarrativeSearchQuery, current_user: dict = Depends(get_current_user)):
+    results = await asyncio.to_thread(search_narratives, body.text, body.limit)
+    items = [
+        SearchResultItem(id=str(r.get("narrative_id", r.get("id", ""))), score=r.get("score", 0.0), payload=r)
+        for r in results
+    ]
+    return SearchResults(items=items, total=len(items))

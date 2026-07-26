@@ -21,9 +21,9 @@ export default function AnomalyDetail() {
   const { data: anomalies = [] } = useAnomalies()
   const { data: narrative, isLoading: narrativeLoading } = useNarrative(id || '')
   const { data: audioBlob, isLoading: audioLoading, isError: audioError } = useAudio(id || '')
-  const [anomalyStatus, setAnomalyStatusState] = useState<string>('pending')
 
   const anomaly = anomalies.find((a: any) => String(a.anomaly_id) === id)
+  const [anomalyStatus, setAnomalyStatusState] = useState<string>(anomaly?.status || 'pending')
 
   const handleStatus = async (status: string) => {
     if (!id) return
@@ -38,7 +38,12 @@ export default function AnomalyDetail() {
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href)
-    showToast('Link copied to clipboard', 'success')
+    showToast('Investigation link copied to clipboard', 'success')
+  }
+
+  const handleExport = () => {
+    exportAnomalyReport(anomaly!, narrative?.text)
+    showToast('Report downloaded', 'success')
   }
 
   if (!anomaly) {
@@ -82,44 +87,58 @@ export default function AnomalyDetail() {
                 <p className="font-crimson text-xs text-[#504440] mt-1">{anomaly.hour}:00 — {anomaly.category}</p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-4 mt-8 items-center">
+
+            <div className="flex flex-wrap gap-3 mt-6 items-center">
               <SeverityBadge severity={anomaly.severity} />
+              <span className="w-px h-5 bg-[#735c00]/20 mx-1" />
+              <button onClick={() => navigate('/dashboard')}
+                className="font-crimson text-sm text-[#735c00] hover:text-[#2c1810] transition-colors flex items-center gap-1">
+                <span className="material-symbols-outlined text-[16px]">arrow_back</span>
+                Map
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 mt-6 pt-6 border-t border-[#735c00]/10">
+              <span className="font-crimson text-xs text-[#504440] uppercase tracking-wider mr-1">Flag:</span>
               {anomalyStatus === 'pending' ? (
                 <>
                   <button onClick={() => handleStatus('valid')}
-                    className="bg-[#735c00] text-white hover:bg-[#5a4a00] transition-all px-6 py-2 rounded-full flex items-center gap-2 text-sm font-crimson relative overflow-hidden group">
-                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                    <span className="material-symbols-outlined text-[18px]">verified</span>
+                    className="bg-[#2d6a4f] text-white hover:bg-[#1e4d38] transition-all px-5 py-2 rounded-full flex items-center gap-2 text-sm font-crimson">
+                    <span className="material-symbols-outlined text-[18px]">check_circle</span>
                     Mark Valid
                   </button>
                   <button onClick={() => handleStatus('mischief')}
-                    className="bg-transparent text-[#735c00] ring-1 ring-[#735c00] hover:bg-[#735c00]/10 transition-colors px-6 py-2 rounded-full flex items-center gap-2 text-sm font-crimson">
-                    <span className="material-symbols-outlined text-[18px]">block</span>
+                    className="bg-[#dc2626] text-white hover:bg-[#b91c1c] transition-all px-5 py-2 rounded-full flex items-center gap-2 text-sm font-crimson">
+                    <span className="material-symbols-outlined text-[18px]">warning</span>
                     Confirm Mischief
                   </button>
                 </>
               ) : (
-                <span className={`px-4 py-2 rounded-full font-crimson text-sm flex items-center gap-2 ${
-                  anomalyStatus === 'valid' ? 'bg-[#2d6a4f]/10 text-[#2d6a4f]' : 'bg-[#dc2626]/10 text-[#dc2626]'
+                <span className={`px-5 py-2 rounded-full font-crimson text-sm flex items-center gap-2 ${
+                  anomalyStatus === 'valid'
+                    ? 'bg-[#2d6a4f]/10 text-[#2d6a4f] ring-1 ring-[#2d6a4f]/30'
+                    : 'bg-[#dc2626]/10 text-[#dc2626] ring-1 ring-[#dc2626]/30'
                 }`}>
                   <span className="material-symbols-outlined text-[16px]">
                     {anomalyStatus === 'valid' ? 'check_circle' : 'warning'}
                   </span>
-                  {anomalyStatus === 'valid' ? 'Marked Valid' : 'Mischief Confirmed'}
+                  {anomalyStatus === 'valid' ? 'Valid Transaction' : 'Mischief Confirmed'}
+                  <button onClick={() => { setAnomalyStatusState('pending'); setAnomalyStatus(id!, 'pending') }}
+                    className="ml-2 opacity-60 hover:opacity-100 transition-opacity">
+                    <span className="material-symbols-outlined text-[14px]">undo</span>
+                  </button>
                 </span>
               )}
-              <button onClick={() => navigate('/dashboard')} className="ml-auto font-crimson text-sm text-[#735c00] hover:text-[#2c1810] underline decoration-[#735c00]/50 underline-offset-4">
-                ← Return to Map
-              </button>
-              <button onClick={() => exportAnomalyReport(anomaly, narrative?.text)}
-                className="font-crimson text-sm text-[#735c00] hover:text-[#2c1810] underline decoration-[#735c00]/50 underline-offset-4 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">download</span>
-                Export PDF
+              <span className="w-px h-5 bg-[#735c00]/20 mx-1" />
+              <button onClick={handleExport}
+                className="font-crimson text-sm text-[#504440] hover:text-[#2c1810] transition-colors flex items-center gap-1">
+                <span className="material-symbols-outlined text-[16px]">download</span>
+                Export
               </button>
               <button onClick={handleCopyLink}
-                className="font-crimson text-sm text-[#735c00] hover:text-[#2c1810] underline decoration-[#735c00]/50 underline-offset-4 flex items-center gap-1">
-                <span className="material-symbols-outlined text-[14px]">share</span>
-                Share Link
+                className="font-crimson text-sm text-[#504440] hover:text-[#2c1810] transition-colors flex items-center gap-1">
+                <span className="material-symbols-outlined text-[16px]">share</span>
+                Share
               </button>
             </div>
           </div>

@@ -104,3 +104,53 @@ class BatchProgressResponse(BaseModel):
     txn_count: int
     anomalies_found: int
     progress: float
+
+
+class SearchFilter(BaseModel):
+    category: Optional[str] = None
+    merchant: Optional[str] = None
+    amount_min: Optional[float] = None
+    amount_max: Optional[float] = None
+    severity: Optional[str] = None
+    status: Optional[str] = None
+    batch_id: Optional[str] = None
+
+
+class SearchTransactionsQuery(BaseModel):
+    vector: Optional[list[float]] = None
+    vector_name: str = "numerical"
+    text: Optional[str] = None
+    filters: Optional[SearchFilter] = None
+    limit: int = 20
+
+
+class SearchAnomaliesQuery(BaseModel):
+    vector: Optional[list[float]] = None
+    vector_name: str = "numerical"
+    text: Optional[str] = None
+    filters: Optional[SearchFilter] = None
+    limit: int = 20
+
+
+class HybridSearchQuery(BaseModel):
+    text: str
+    vector: Optional[list[float]] = None
+    filters: Optional[SearchFilter] = None
+    limit: int = 20
+
+
+class NarrativeSearchQuery(BaseModel):
+    text: str
+    limit: int = 20
+
+
+class SearchResultItem(BaseModel):
+    id: str
+    score: float = 0.0
+    fusion_score: Optional[float] = None
+    payload: dict
+
+
+class SearchResults(BaseModel):
+    items: list[SearchResultItem]
+    total: int

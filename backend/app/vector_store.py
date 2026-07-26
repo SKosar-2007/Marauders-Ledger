@@ -38,6 +38,7 @@ VECTORAI_LICENSE = os.getenv("VECTORAI_LICENSE_KEY") or os.getenv("VECTORAI_LICE
 
 _client = None
 _vectorai_available = False
+_use_named_vectors = False
 _fallback_conn: Optional[sqlite3.Connection] = None
 _fallback_lock = threading.Lock()
 _next_id: int = 1
@@ -133,7 +134,7 @@ def _init_fallback_tables(conn: sqlite3.Connection):
 # ─── VectorAI Connection ───
 
 def init_vector_store() -> bool:
-    global _client, _vectorai_available
+    global _client, _vectorai_available, _use_named_vectors
     if not _try_import():
         return False
     try:
@@ -152,16 +153,38 @@ def init_vector_store() -> bool:
         info = _client.health_check()
         print(f"VectorAI: {info.get('title', 'VectorAI')} v{info.get('version', '?')} — CONNECTED")
 
+        named_vectors_config = {
+            "numerical": VectorParams(size=VECTOR_DIM, distance=Distance.Cosine),
+            "semantic": VectorParams(size=VECTOR_DIM, distance=Distance.Cosine),
+        }
+        single_vector_config = VectorParams(size=VECTOR_DIM, distance=Distance.Cosine)
+
         existing = set(_client.collections.list())
         for name in COLLECTIONS:
             if name not in existing:
-                _client.collections.create(
-                    name,
-                    vectors_config=VectorParams(size=VECTOR_DIM, distance=Distance.Cosine),
-                )
-                print(f"VectorAI: created '{name}' collection")
+                try:
+                    _client.collections.create(name, vectors_config=named_vectors_config)
+                    _use_named_vectors = True
+                    print(f"VectorAI: created '{name}' collection with named vectors")
+                except Exception:
+                    _client.collections.create(name, vectors_config=single_vector_config)
+                    print(f"VectorAI: created '{name}' collection (single vector)")
             else:
                 print(f"VectorAI: collection '{name}' exists")
+
+        if not _use_named_vectors:
+            try:
+                from actian_vectorai import PointStruct as _PS
+                _probe_id = 999999999
+                _client.points.upsert("transactions", [
+                    _PS(id=_probe_id, vector={"numerical": [0.0]*128, "semantic": [0.0]*128}, payload={}),
+                ])
+                _client.points.delete("transactions", ids=[_probe_id])
+                _use_named_vectors = True
+                print("VectorAI: named vectors are supported")
+            except Exception:
+                _use_named_vectors = False
+                print("VectorAI: named vectors NOT supported — using single vector mode")
 
         print(f"VectorAI: all collections ready — {sorted(_client.collections.list())}")
         _vectorai_available = True
@@ -174,7 +197,20 @@ def init_vector_store() -> bool:
 
 
 def is_vectorai_available() -> bool:
-    return _vectorai_available and _client is not None
+    global _vectorai_available
+    if _vectorai_available and _client is not None:
+        try:
+            _client.health_check()
+            return True
+        except Exception:
+            _vectorai_available = False
+    if not _vectorai_available and _try_import():
+        try:
+            init_vector_store()
+            return _vectorai_available
+        except Exception:
+            return False
+    return False
 
 
 # ─── Vector Encoding ───
@@ -217,6 +253,19 @@ def _encode_text(text: str) -> list[float]:
     return vec.tolist()
 
 
+def _encode_semantic(text: str) -> list[float]:
+    vec = np.zeros(VECTOR_DIM, dtype=np.float32)
+    t = text.lower()
+    for i in range(len(t) - 2):
+        trigram = t[i:i+3]
+        h = int(md5(trigram.encode()).hexdigest()[:8], 16)
+        vec[h % VECTOR_DIM] += 1.0
+    norm = np.linalg.norm(vec)
+    if norm > 0:
+        vec /= norm
+    return vec.tolist()
+
+
 # ─── Transactions ───
 
 def insert_transactions(txns: list[dict], user_id: int, batch_id: str) -> list[int]:
@@ -232,8 +281,17 @@ def _vt_insert_transactions(txns: list[dict], user_id: int, batch_id: str) -> li
     for txn in txns:
         pid = txn.get("txn_id") or _fb_gen_id()
         payload = {**txn, "user_id": user_id, "batch_id": batch_id, "txn_id": pid}
-        vec = _encode_transaction(payload)
-        points.append(PointStruct(id=pid, vector=vec, payload=payload))
+        numeric_vec = _encode_transaction(payload)
+        if _use_named_vectors:
+            semantic_text = f"{payload.get('merchant', '')} {payload.get('category', '')}"
+            semantic_vec = _encode_semantic(semantic_text)
+            points.append(PointStruct(
+                id=pid,
+                vector={"numerical": numeric_vec, "semantic": semantic_vec},
+                payload=payload,
+            ))
+        else:
+            points.append(PointStruct(id=pid, vector=numeric_vec, payload=payload))
         ids.append(pid)
     _client.points.upsert("transactions", points)
     return ids
@@ -394,8 +452,17 @@ def _vt_insert_anomalies(anomalies: list[dict], user_id: int) -> list[int]:
             "triggered_rules": rules_str,
             "is_anomaly": 1 if a.get("is_anomaly") else 0,
         }
-        vec = _encode_transaction(payload)
-        points.append(PointStruct(id=pid, vector=vec, payload=payload))
+        numeric_vec = _encode_transaction(payload)
+        if _use_named_vectors:
+            semantic_text = f"{payload.get('merchant', '')} {payload.get('category', '')}"
+            semantic_vec = _encode_semantic(semantic_text)
+            points.append(PointStruct(
+                id=pid,
+                vector={"numerical": numeric_vec, "semantic": semantic_vec},
+                payload=payload,
+            ))
+        else:
+            points.append(PointStruct(id=pid, vector=numeric_vec, payload=payload))
         ids.append(pid)
     if points:
         _client.points.upsert("anomalies", points)
@@ -653,12 +720,18 @@ def _vt_insert_narrative(anomaly_id: int, text: str) -> int:
     for p in points:
         if p.payload.get("anomaly_id") == anomaly_id:
             p.payload["text"] = text
-            vec = _encode_text(text)
+            if _use_named_vectors:
+                vec = {"numerical": _encode_text(text), "semantic": _encode_semantic(text)}
+            else:
+                vec = _encode_text(text)
             _client.points.upsert("narratives", [PointStruct(id=p.id, vector=vec, payload=p.payload)])
             return p.id
 
     pid = _fb_gen_id()
-    vec = _encode_text(text)
+    if _use_named_vectors:
+        vec = {"numerical": _encode_text(text), "semantic": _encode_semantic(text)}
+    else:
+        vec = _encode_text(text)
     _client.points.upsert(
         "narratives",
         [PointStruct(id=pid, vector=vec, payload={"anomaly_id": anomaly_id, "text": text})],
@@ -773,15 +846,304 @@ def get_spending_by_day(user_id: int) -> list[dict]:
 def search_similar_transactions(vector: list[float], limit: int = 10) -> list[dict]:
     if not is_vectorai_available():
         return []
-    results = _client.points.search("transactions", vector=vector, limit=limit)
+    kwargs = dict(vector=vector, limit=limit)
+    if _use_named_vectors:
+        kwargs["using"] = "numerical"
+    results = _client.points.search("transactions", **kwargs)
     return [r.payload for r in results]
 
 
 def search_similar_anomalies(vector: list[float], limit: int = 10) -> list[dict]:
     if not is_vectorai_available():
         return []
-    results = _client.points.search("anomalies", vector=vector, limit=limit)
+    kwargs = dict(vector=vector, limit=limit)
+    if _use_named_vectors:
+        kwargs["using"] = "numerical"
+    results = _client.points.search("anomalies", **kwargs)
     return [r.payload for r in results]
+
+
+# ─── Filtered Search ───
+
+def _build_search_filter(
+    category: Optional[str] = None,
+    merchant: Optional[str] = None,
+    amount_min: Optional[float] = None,
+    amount_max: Optional[float] = None,
+    severity: Optional[str] = None,
+    status: Optional[str] = None,
+    batch_id: Optional[str] = None,
+    user_id: Optional[int] = None,
+):
+    _ensure_filter_imports()
+    if not _FilterBuilder:
+        return None
+    try:
+        builder = _FilterBuilder()
+        if category is not None:
+            builder = builder.must(_Field("category").eq(category))
+        if merchant is not None:
+            builder = builder.must(_Field("merchant").eq(merchant))
+        if amount_min is not None:
+            builder = builder.must(_Field("amount").gte(amount_min))
+        if amount_max is not None:
+            builder = builder.must(_Field("amount").lte(amount_max))
+        if severity is not None:
+            builder = builder.must(_Field("severity").eq(severity))
+        if status is not None:
+            builder = builder.must(_Field("status").eq(status))
+        if batch_id is not None:
+            builder = builder.must(_Field("batch_id").eq(batch_id))
+        if user_id is not None:
+            builder = builder.must(_Field("user_id").eq(user_id))
+        return builder.build()
+    except Exception:
+        return None
+
+
+def filtered_search_transactions(
+    query_vector: Optional[list[float]] = None,
+    vector_name: str = "numerical",
+    category: Optional[str] = None,
+    merchant: Optional[str] = None,
+    amount_min: Optional[float] = None,
+    amount_max: Optional[float] = None,
+    batch_id: Optional[str] = None,
+    user_id: Optional[int] = None,
+    limit: int = 20,
+) -> list[dict]:
+    if not is_vectorai_available() or query_vector is None:
+        return _fb_filtered_search_transactions(category, merchant, amount_min, amount_max, batch_id, user_id, limit)
+    filt = _build_search_filter(category=category, merchant=merchant, amount_min=amount_min, amount_max=amount_max, batch_id=batch_id, user_id=user_id)
+    kwargs = dict(vector=query_vector, limit=limit, with_payload=True)
+    if _use_named_vectors:
+        kwargs["using"] = vector_name
+    if filt is not None:
+        kwargs["filter"] = filt
+    results = _client.points.search("transactions", **kwargs)
+    return [{**r.payload, "txn_id": r.id, "score": r.score} for r in results]
+
+
+def _fb_filtered_search_transactions(
+    category: Optional[str] = None,
+    merchant: Optional[str] = None,
+    amount_min: Optional[float] = None,
+    amount_max: Optional[float] = None,
+    batch_id: Optional[str] = None,
+    user_id: Optional[int] = None,
+    limit: int = 20,
+) -> list[dict]:
+    conn = _get_fallback_conn()
+    where = []
+    params: list = []
+    if category is not None:
+        where.append("category = ?")
+        params.append(category)
+    if merchant is not None:
+        where.append("merchant = ?")
+        params.append(merchant)
+    if amount_min is not None:
+        where.append("amount >= ?")
+        params.append(amount_min)
+    if amount_max is not None:
+        where.append("amount <= ?")
+        params.append(amount_max)
+    if batch_id is not None:
+        where.append("batch_id = ?")
+        params.append(batch_id)
+    if user_id is not None:
+        where.append("user_id = ?")
+        params.append(user_id)
+    where_clause = " AND ".join(where) if where else "1"
+    rows = conn.execute(
+        f"SELECT * FROM vector_transactions WHERE {where_clause} ORDER BY created_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def filtered_search_anomalies(
+    query_vector: Optional[list[float]] = None,
+    vector_name: str = "numerical",
+    category: Optional[str] = None,
+    merchant: Optional[str] = None,
+    severity: Optional[str] = None,
+    status: Optional[str] = None,
+    batch_id: Optional[str] = None,
+    user_id: Optional[int] = None,
+    limit: int = 20,
+) -> list[dict]:
+    if not is_vectorai_available() or query_vector is None:
+        return _fb_filtered_search_anomalies(category, merchant, severity, status, batch_id, user_id, limit)
+    filt = _build_search_filter(category=category, merchant=merchant, severity=severity, status=status, batch_id=batch_id, user_id=user_id)
+    kwargs = dict(vector=query_vector, limit=limit, with_payload=True)
+    if _use_named_vectors:
+        kwargs["using"] = vector_name
+    if filt is not None:
+        kwargs["filter"] = filt
+    results = _client.points.search("anomalies", **kwargs)
+    return [{**r.payload, "anomaly_id": r.id, "score": r.score} for r in results]
+
+
+def _fb_filtered_search_anomalies(
+    category: Optional[str] = None,
+    merchant: Optional[str] = None,
+    severity: Optional[str] = None,
+    status: Optional[str] = None,
+    batch_id: Optional[str] = None,
+    user_id: Optional[int] = None,
+    limit: int = 20,
+) -> list[dict]:
+    conn = _get_fallback_conn()
+    where = ["is_anomaly = 1"]
+    params: list = []
+    if category is not None:
+        where.append("category = ?")
+        params.append(category)
+    if merchant is not None:
+        where.append("merchant = ?")
+        params.append(merchant)
+    if severity is not None:
+        where.append("severity = ?")
+        params.append(severity)
+    if status is not None:
+        where.append("status = ?")
+        params.append(status)
+    if batch_id is not None:
+        where.append("batch_id = ?")
+        params.append(batch_id)
+    if user_id is not None:
+        where.append("user_id = ?")
+        params.append(user_id)
+    rows = conn.execute(
+        f"SELECT * FROM vector_anomalies WHERE {' AND '.join(where)} ORDER BY detected_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+    results = []
+    for r in rows:
+        d = dict(r)
+        if isinstance(d.get("triggered_rules"), str):
+            try:
+                d["triggered_rules"] = json.loads(d["triggered_rules"])
+            except (json.JSONDecodeError, TypeError):
+                d["triggered_rules"] = []
+        results.append(d)
+    return results
+
+
+# ─── Hybrid Fusion (vector + keyword) ───
+
+def hybrid_search_transactions(
+    query_text: str,
+    query_vector: Optional[list[float]] = None,
+    category: Optional[str] = None,
+    user_id: Optional[int] = None,
+    limit: int = 20,
+) -> list[dict]:
+    if not is_vectorai_available():
+        return _fb_filtered_search_transactions(category=category, user_id=user_id, limit=limit)
+
+    steps = 3
+    results: dict[int, dict] = {}
+    vector_ranks: dict[int, int] = {}
+    keyword_ranks: dict[int, int] = {}
+
+    step_stride = max(limit * steps, 60)
+
+    if query_vector is not None:
+        filt = _build_search_filter(category=category, user_id=user_id)
+        kwargs = dict(vector=query_vector, limit=step_stride, with_payload=True)
+        if _use_named_vectors:
+            kwargs["using"] = "numerical"
+        if filt is not None:
+            kwargs["filter"] = filt
+        try:
+            vt_results = _client.points.search("transactions", **kwargs)
+            for rank, r in enumerate(vt_results):
+                pid = r.id if hasattr(r, "id") else hash(str(r.payload))
+                if pid not in vector_ranks:
+                    vector_ranks[pid] = rank
+                results.setdefault(pid, {**r.payload, "txn_id": pid})["_vector_score"] = r.score
+        except Exception:
+            pass
+
+    if query_text:
+        tokens = [t.lower() for t in query_text.split() if len(t) > 2]
+        _ensure_filter_imports()
+        if _FilterBuilder and tokens:
+            try:
+                builder = _FilterBuilder()
+                for token in tokens:
+                    builder = builder.should(_Field("merchant").match(token))
+                    builder = builder.should(_Field("category").match(token))
+                if category is not None:
+                    builder = builder.must(_Field("category").eq(category))
+                if user_id is not None:
+                    builder = builder.must(_Field("user_id").eq(user_id))
+                builder = builder.build()
+                kw_results = _client.points.scroll("transactions", limit=step_stride, filter=builder, with_payload=True, with_vectors=False)
+                kw_points = kw_results[0] if isinstance(kw_results, tuple) else kw_results
+                for rank, r in enumerate(kw_points):
+                    pid = r.id if hasattr(r, "id") else hash(str(r.payload))
+                    if pid not in keyword_ranks:
+                        keyword_ranks[pid] = rank
+                    results.setdefault(pid, {**r.payload, "txn_id": pid})["_keyword_match"] = True
+            except Exception:
+                pass
+
+    scored = []
+    const_k = 60
+    for pid, item in results.items():
+        vr = vector_ranks.get(pid)
+        kr = keyword_ranks.get(pid)
+        fusion_score = 0.0
+        if vr is not None:
+            fusion_score += 1.0 / (const_k + vr)
+        if kr is not None:
+            fusion_score += 1.0 / (const_k + kr)
+        item["fusion_score"] = round(fusion_score, 6)
+        if vr is not None:
+            item["score"] = round(item.get("_vector_score", 0), 6)
+        else:
+            item["score"] = 0.0
+        scored.append(item)
+
+    scored.sort(key=lambda x: x["fusion_score"], reverse=True)
+    for item in scored:
+        item.pop("_vector_score", None)
+        item.pop("_keyword_match", None)
+
+    return scored[:limit]
+
+
+# ─── Narrative Search ───
+
+def search_narratives(
+    query_text: str,
+    limit: int = 20,
+) -> list[dict]:
+    if not is_vectorai_available():
+        return _fb_search_narratives(query_text, limit)
+    query_vec = _encode_semantic(query_text)
+    kwargs = dict(vector=query_vec, limit=limit, with_payload=True)
+    if _use_named_vectors:
+        kwargs["using"] = "semantic"
+    results = _client.points.search("narratives", **kwargs)
+    return [{**r.payload, "narrative_id": r.id, "score": r.score} for r in results]
+
+
+def _fb_search_narratives(query_text: str, limit: int = 20) -> list[dict]:
+    conn = _get_fallback_conn()
+    tokens = [t.lower() for t in query_text.split() if len(t) > 2]
+    if not tokens:
+        return []
+    like_clauses = " OR ".join(["text LIKE ?" for _ in tokens])
+    params = [f"%{t}%" for t in tokens]
+    rows = conn.execute(
+        f"SELECT * FROM vector_narratives WHERE {like_clauses} ORDER BY created_at DESC LIMIT ?",
+        params + [limit],
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 # ─── Utility ───
