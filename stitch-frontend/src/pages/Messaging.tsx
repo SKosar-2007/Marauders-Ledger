@@ -1,3 +1,5 @@
+import VoiceChatPanel from '../components/VoiceChatPanel'
+
 export default function Messaging() {
   const messages = [
     { priority: 'Critical', sender: 'SYS_ADMIN', time: '10:42 AM', title: 'Sector 7 Node Failure Detected', desc: 'Automated diagnostic confirms loss of signal from Sector 7 cooling nodes. Initiate manual override sequence immediately to prevent cascade failure.', unread: true },
@@ -28,6 +30,10 @@ export default function Messaging() {
               <span className="material-symbols-outlined text-[48px] text-primary">warning</span>
             </div>
           </div>
+        </section>
+
+        <section className="mt-gutter">
+          <VoiceChatPanel />
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-start mt-gutter">

@@ -1,13 +1,12 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir 'protobuf>=6.33.5'
 
-COPY models/ models/
-COPY app/ app/
-COPY scripts/ scripts/
+COPY . .
 
 EXPOSE 8000
 

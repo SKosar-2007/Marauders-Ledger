@@ -49,7 +49,7 @@ export async function getBatches(): Promise<Batch[]> {
 }
 
 export interface Anomaly {
-  anomaly_id: string
+  anomaly_id: number
   amount: number
   category: string
   merchant: string
@@ -63,7 +63,7 @@ export interface Anomaly {
 function fromBackendAnomaly(raw: any): Anomaly {
   const rawScore = raw.final_score ?? raw.score ?? 0
   return {
-    anomaly_id: raw.anomaly_id,
+    anomaly_id: Number(raw.anomaly_id),
     amount: raw.amount,
     category: raw.category,
     merchant: raw.merchant,
@@ -86,7 +86,7 @@ export async function getAnomaly(id: number): Promise<Anomaly> {
 }
 
 export async function updateAnomalyStatus(id: number, status: string): Promise<void> {
-  await client.patch(`/anomalies/${id}/status`, { status })
+  await client.post(`/anomalies/${id}/status?status=${encodeURIComponent(status)}`)
 }
 
 export interface Transaction {

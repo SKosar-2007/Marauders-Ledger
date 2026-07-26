@@ -20,12 +20,9 @@ if GEMINI_API_KEY and GEMINI_API_KEY not in ("your_key_here", "your_gemini_api_k
         _gemini_client = None
 
 _BASE_SYSTEM_PROMPT = (
-    "You are the Marauder's Map from Harry Potter -- a magical, mischievous "
-    "interactive assistant. You help the user investigate suspicious financial "
-    "transactions and anomalies. You speak in a playful, mysterious tone with "
-    "Harry Potter references. Keep responses concise (2-4 sentences) since "
-    "they will be spoken aloud via text-to-speech. Do NOT use markdown, "
-    "bullet points, or formatting -- just natural speech."
+    "You are a concise, professional assistant for reviewing financial transactions and anomalies. "
+    "Answer the user's latest question directly and specifically, using the current screen context when it is relevant. "
+    "Keep responses short, factual, and easy to speak aloud. Do not use markdown, bullet points, or formatting."
 )
 
 # Lazy import to avoid circular deps at module level
@@ -84,7 +81,7 @@ def generate_chat_response(
     system_prompt = _BASE_SYSTEM_PROMPT + _build_context_block(anomaly_id, batch_id, user_id)
 
     if _gemini_client is None:
-        return _fallback_response(message, anomaly_id, batch_id)
+        return _fallback_response(message, anomaly_id, batch_id, history)
 
     contents = []
     for msg in (history or []):
@@ -98,44 +95,30 @@ def generate_chat_response(
             contents=contents,
             config={"system_instruction": system_prompt},
         )
-        return response.text or _fallback_response(message, anomaly_id, batch_id)
+        return response.text or _fallback_response(message, anomaly_id, batch_id, history)
     except Exception as e:
         print(f"Chat Gemini error: {e} — using fallback")
-        return _fallback_response(message, anomaly_id, batch_id)
+        return _fallback_response(message, anomaly_id, batch_id, history)
 
 
-_RESPONSES = [
-    "Ah, I hear you asking about '{topic}'! The Marauder's Map sees all, you know. Keep your questions coming, and the secrets shall unfold.",
-    "'{topic}', you say? How fascinating. The enchanted parchment reveals patterns invisible to the ordinary eye. What else do you seek?",
-    "The Map quivers with interest at '{topic}'! There's more mischief in these numbers than meets the eye. Shall we press on?",
-    "You speak of '{topic}' -- a wise line of inquiry. The Map has its own ways of knowing. Let's see what other secrets the ledger holds.",
-    "Every transaction tells a story, and '{topic}' is no exception. The Map is ever watchful. What would you like to uncover next?",
-    "A most curious topic, '{topic}'! I solemnly swear I am up to no good in my investigations. Care to explore further?",
-    "The parchment stirs at '{topic}'! Mischief managed in one corner, but there's always more afoot. Ask away!",
-    "You have a keen eye for '{topic}'. Even the most hidden details find their way onto this map. What else draws your attention?",
-]
-
-_ANOMALY_RESPONSES = [
-    "Ah yes, anomaly #{aid} -- I've been watching that one. A {cat} transaction of {amt} at {merchant}. The rules have spoken: {rules}. What do you make of it?",
-    "Anomaly #{aid} is quite the puzzle. A {amt} charge in '{cat}' from {merchant}. My instincts say {status}. Care to investigate further?",
-    "The Map has its eye on anomaly #{aid}. {amt} galleons at {merchant} in '{cat}' -- most peculiar. Triggered by: {rules}. Your move, detective.",
-    "Oho, anomaly #{aid}! A curious little entry. {amt} from {merchant} under '{cat}' -- the Map flagged it for {rules}. Currently {status}. Intriguing, isn't it?",
-]
-
-_THEMED = {
-    "hello": "Well, well, well -- a new visitor to the Map! I am the Marauder's Map, keeper of secrets and revealer of truths. What brings you here?",
-    "hi": "Greetings, friend! The ink swirls and the Map awakens at your arrival. Ready to uncover some financial mischief together?",
-    "hey": "Hey there! The passages of this castle hold many secrets, and so does your ledger. What shall we look into?",
-    "help": "Need guidance? The Map has your back. Ask about your transactions, anomalies I've flagged, or just chat about your financial mysteries. Try 'what anomalies are there?' or 'tell me about this batch'.",
+_BASIC_GREETINGS = {
+    "hello": "Hello. I can help explain anomalies, transaction details, or current review status.",
+    "hi": "Hi. I can help explain anomalies, transaction details, or current review status.",
+    "hey": "Hey. I can help explain anomalies, transaction details, or current review status.",
+    "help": "I can help review transactions, explain anomaly flags, or summarize the current context.",
 }
 
-def _fallback_response(message: str, anomaly_id: Optional[int] = None, batch_id: Optional[str] = None) -> str:
+def _fallback_response(
+    message: str,
+    anomaly_id: Optional[int] = None,
+    batch_id: Optional[str] = None,
+    history: Optional[list[dict]] = None,
+) -> str:
     msg = message.lower().strip()
-    for keyword, reply in _THEMED.items():
+    for keyword, reply in _BASIC_GREETINGS.items():
         if msg == keyword or msg.startswith(keyword + " ") or msg.startswith(keyword + ","):
             return reply
 
-    # If the message mentions anomaly keywords and we have anomaly context, use anomaly-specific reply
     if anomaly_id is not None and anomaly_id in _anomaly_cache:
         a = _anomaly_cache[anomaly_id]
         rules_list = a.get("triggered_rules", [])
@@ -143,20 +126,45 @@ def _fallback_response(message: str, anomaly_id: Optional[int] = None, batch_id:
             rules_str = ", ".join(rules_list[:3])
         else:
             rules_str = str(rules_list)[:60]
-        return random.choice(_ANOMALY_RESPONSES).format(
-            aid=anomaly_id,
-            amt=a.get("amount", "?"),
-            cat=a.get("category", "?"),
-            merchant=a.get("merchant", "?"),
-            status=a.get("status", "pending"),
-            rules=rules_str or "unknown pattern",
+        amount = a.get("amount", "?")
+        category = a.get("category", "?")
+        merchant = a.get("merchant", "?")
+        status = a.get("status", "pending")
+
+        if any(k in msg for k in ["why", "reason", "trigger", "flagged", "rule"]):
+            return (
+                f"Anomaly #{anomaly_id} was flagged because {rules_str or 'the pattern matched the review rules'}. "
+                f"It is a {category} transaction for {amount} at {merchant}, and its current status is {status}."
+            )
+
+        if any(k in msg for k in ["status", "valid", "fraud", "pending"]):
+            return f"Anomaly #{anomaly_id} is currently {status}. It is a {category} transaction for {amount} at {merchant}."
+
+        if any(k in msg for k in ["merchant", "where", "from"]):
+            return f"The transaction came from {merchant}."
+
+        if any(k in msg for k in ["category", "type"]):
+            return f"It falls under the {category} category."
+
+        if any(k in msg for k in ["amount", "how much"]):
+            return f"The transaction amount is {amount}."
+
+        return (
+            f"Anomaly #{anomaly_id} is a {category} transaction for {amount} at {merchant}. "
+            f"The current status is {status}, and the triggered rules were {rules_str or 'not listed'}."
         )
 
     if batch_id is not None:
         return (
-            f"I see you're looking at batch {batch_id[:8]}... The Map has a lot to say about this batch — "
-            f"transactions flowing like floo powder through the ledger. Ask me about specific anomalies or trends you've spotted!"
+            f"You are looking at batch {batch_id[:8]}... I can help explain its anomalies, review the flagged patterns, "
+            f"or summarize the transactions that matter most right now."
         )
 
+    if history:
+        last_user = next((item.get("text", "") for item in reversed(history) if item.get("role") == "user"), "")
+        if last_user:
+            topic = last_user.strip()[:50].strip() or "this matter"
+            return f"You asked about {topic}. I can help explain the anomaly, the triggering rules, or the transaction context in more detail."
+
     topic = message.strip()[:50].strip() or "this matter"
-    return random.choice(_RESPONSES).format(topic=topic)
+    return f"You asked about {topic}. I can help explain the anomaly details, the triggered rules, or the transaction context in more detail."

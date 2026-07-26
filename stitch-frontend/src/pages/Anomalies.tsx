@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { getAnomalies, SEVERITY_CONFIG, type NarrativeSeverity } from '../api/client'
+import { getAnomalies, updateAnomalyStatus, SEVERITY_CONFIG, type NarrativeSeverity } from '../api/client'
 import { LoadingSkeleton, EmptyState } from '../components/ui'
 
 const CATEGORIES = ['All', 'Food', 'Shopping', 'Bills', 'Transport', 'Entertainment', 'Other']
@@ -16,6 +16,7 @@ function getSeverity(score?: number): NarrativeSeverity {
 
 export default function Anomalies() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [activeCategory, setActiveCategory] = useState('All')
   const [activeSort, setActiveSort] = useState('Newest')
   const [searchQuery, setSearchQuery] = useState('')
@@ -23,6 +24,16 @@ export default function Anomalies() {
   const { data: anomalies, isLoading } = useQuery({
     queryKey: ['anomalies'],
     queryFn: () => getAnomalies({ limit: 50 }),
+  })
+
+  const bulkStatusMutation = useMutation({
+    mutationFn: async ({ ids, status }: { ids: number[]; status: string }) => {
+      await Promise.all(ids.map((id) => updateAnomalyStatus(id, status)))
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['anomalies'] })
+      setSelectedIds(new Set())
+    },
   })
 
   const filtered = useMemo(() => {
@@ -50,6 +61,11 @@ export default function Anomalies() {
       if (next.has(id)) next.delete(id); else next.add(id)
       return next
     })
+  }
+
+  const handleBulkStatus = (status: string) => {
+    if (selectedIds.size === 0) return
+    bulkStatusMutation.mutate({ ids: Array.from(selectedIds), status })
   }
 
   return (
@@ -91,11 +107,13 @@ export default function Anomalies() {
           ))}
           {selectedIds.size > 0 && (
             <div className="flex gap-2 ml-auto">
-              <button className="px-4 py-2 border-[3px] border-primary bg-secondary-container text-on-secondary-container font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-none transition-all">
-                Mark Valid ({selectedIds.size})
+              <button onClick={() => handleBulkStatus('valid')} disabled={bulkStatusMutation.isPending}
+                className="px-4 py-2 border-[3px] border-primary bg-secondary-container text-on-secondary-container font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-none transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                {bulkStatusMutation.isPending ? 'Updating...' : `Mark Valid (${selectedIds.size})`}
               </button>
-              <button className="px-4 py-2 border-[3px] border-primary bg-error text-on-error font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-none transition-all">
-                Flag Fraud ({selectedIds.size})
+              <button onClick={() => handleBulkStatus('fraud')} disabled={bulkStatusMutation.isPending}
+                className="px-4 py-2 border-[3px] border-primary bg-error text-on-error font-mono text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-0.5 hover:translate-x-0.5 hover:shadow-none transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                {bulkStatusMutation.isPending ? 'Updating...' : `Flag Fraud (${selectedIds.size})`}
               </button>
               <button onClick={() => setSelectedIds(new Set())}
                 className="px-4 py-2 border-[3px] border-primary bg-surface-container text-on-surface font-mono text-xs uppercase hover:bg-surface-variant transition-all">

@@ -71,11 +71,11 @@ export default function Analysis() {
               {catData.length > 0 ? catData.slice(0, 6).map((c, i: number) => (
                 <div key={i}>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-mono text-xs uppercase text-on-surface">{c.category || c.name}</span>
+                    <span className="font-mono text-xs uppercase text-on-surface">{c.category}</span>
                     <span className="font-mono text-sm font-bold text-primary">{c.total?.toFixed(2) || '0'} G</span>
                   </div>
                   <div className="w-full h-2 bg-surface-container border-2 border-primary">
-                    <div className="h-full bg-secondary-container border-r-2 border-primary" style={{ width: `${Math.min(100, (c.percentage || c.total / 1000) * 100)}%` }} />
+                    <div className="h-full bg-secondary-container border-r-2 border-primary" style={{ width: `${Math.min(100, (c.total / 1000) * 100)}%` }} />
                   </div>
                 </div>
               )) : ['Food', 'Shopping', 'Bills', 'Transport', 'Entertainment', 'Other'].map((cat, i) => (

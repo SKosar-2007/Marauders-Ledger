@@ -30,6 +30,33 @@ docker compose up --build
 
 Then open the app at http://localhost:8000 (or the deployed judge URL if using the production setup).
 
+## Production Deployment
+
+For a simple production deployment, use a DigitalOcean droplet with Docker Compose and expose the FastAPI backend directly on port 8000.
+
+```bash
+ssh root@<droplet-ip>
+apt update && apt install -y docker.io docker-compose-v2
+
+git clone <your-repo-url> /opt/marauders-ledger
+cd /opt/marauders-ledger
+cp .env.example .env
+# update the values in .env, then start the stack
+docker compose up -d
+```
+
+Recommended runtime environment values:
+
+```env
+GEMINI_API_KEY=
+ELEVENLABS_API_KEY=
+VECTORAI_HOST=vectorai
+VECTORAI_PORT=6574
+ACTIAN_VECTORAI_ACCEPT_EULA=YES
+```
+
+The judge URL should be http://<droplet-ip>:8000 (or http://<droplet-ip>.sslip.io:8000 if you want a friendlier domain name).
+
 ## Actian Track Submission Requirements
 
 - Public GitHub repository with a README: Yes
