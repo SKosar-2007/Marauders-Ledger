@@ -45,11 +45,11 @@ export interface Batch {
 
 export async function getBatches(): Promise<Batch[]> {
   const { data } = await client.get('/batches')
-  return data.batches || []
+  return Array.isArray(data) ? data : data?.batches ?? []
 }
 
 export interface Anomaly {
-  anomaly_id: number
+  anomaly_id: string
   amount: number
   category: string
   merchant: string
@@ -60,14 +60,28 @@ export interface Anomaly {
   narrative?: string
 }
 
+function fromBackendAnomaly(raw: any): Anomaly {
+  return {
+    anomaly_id: raw.anomaly_id,
+    amount: raw.amount,
+    category: raw.category,
+    merchant: raw.merchant,
+    timestamp: raw.detected_at || raw.timestamp || '',
+    status: raw.status || 'pending',
+    triggered_rules: Array.isArray(raw.triggered_rules) ? raw.triggered_rules : [],
+    score: raw.final_score ?? raw.score,
+  }
+}
+
 export async function getAnomalies(params?: { status?: string; limit?: number; offset?: number }): Promise<Anomaly[]> {
   const { data } = await client.get('/anomalies', { params })
-  return data?.anomalies ?? []
+  const items: any[] = data?.items ?? data?.anomalies ?? []
+  return items.map(fromBackendAnomaly)
 }
 
 export async function getAnomaly(id: number): Promise<Anomaly> {
   const { data } = await client.get(`/anomalies/${id}`)
-  return data
+  return fromBackendAnomaly(data)
 }
 
 export async function updateAnomalyStatus(id: number, status: string): Promise<void> {
@@ -102,12 +116,12 @@ export async function uploadCSV(file: File): Promise<{ batch_id: string }> {
 }
 
 export async function getSpendingByDay(days?: number) {
-  const { data } = await client.get('/analytics/spending-by-day', { params: { days } })
+  const { data } = await client.get('/spending/daily', { params: { days } })
   return data
 }
 
-export async function getSpendingByCategory() {
-  const { data } = await client.get('/analytics/spending-by-category')
+export async function getSpendingByCategory(): Promise<Array<{ category: string; total: number }>> {
+  const { data } = await client.get('/spending/category')
   return data
 }
 

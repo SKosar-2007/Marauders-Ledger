@@ -1,20 +1,20 @@
-import { useState, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { getBatches, getAnomalies, getTransactions, getSpendingByDay, SEVERITY_CONFIG, type NarrativeSeverity } from '../api/client'
+import { getBatches, getAnomalies, getTransactions, getSpendingByDay, getSpendingByCategory, SEVERITY_CONFIG, type NarrativeSeverity } from '../api/client'
 import { MiniSparkline } from '../components/ui'
 
 const CATEGORIES = ['All', 'Food', 'Shopping', 'Bills', 'Transport', 'Entertainment', 'Other']
 
-const SPENDING_CLUSTERS = [
-  { x: 25, y: 35, label: 'Food & Dining', size: 'lg', txnCount: 142, color: 'bg-surface-container-lowest', anomalies: 3, sparkline: [40, 65, 55, 80, 70, 90, 60] },
-  { x: 60, y: 20, label: 'Shopping', size: 'lg', txnCount: 98, color: 'bg-tertiary-fixed', anomalies: 1, sparkline: [30, 45, 60, 50, 75, 65, 55] },
-  { x: 75, y: 55, label: 'Entertainment', size: 'md', txnCount: 67, color: 'bg-secondary-container', anomalies: 0, sparkline: [25, 30, 35, 40, 45, 50, 38] },
-  { x: 40, y: 65, label: 'Bills & Utilities', size: 'md', txnCount: 53, color: 'bg-surface-container-lowest', anomalies: 2, sparkline: [80, 85, 78, 82, 88, 80, 75] },
-  { x: 15, y: 70, label: 'Transport', size: 'sm', txnCount: 34, color: 'bg-surface-container-lowest', anomalies: 0, sparkline: [20, 25, 30, 22, 28, 35, 32] },
-  { x: 85, y: 75, label: 'Other', size: 'sm', txnCount: 28, color: 'bg-surface-container-lowest', anomalies: 1, sparkline: [15, 18, 22, 20, 25, 28, 24] },
+const CLUSTER_DEFS = [
+  { x: 25, y: 35, label: 'Food & Dining', category: 'Food', color: 'bg-surface-container-lowest' },
+  { x: 60, y: 20, label: 'Shopping', category: 'Shopping', color: 'bg-tertiary-fixed' },
+  { x: 75, y: 55, label: 'Entertainment', category: 'Entertainment', color: 'bg-secondary-container' },
+  { x: 40, y: 65, label: 'Bills & Utilities', category: 'Bills', color: 'bg-surface-container-lowest' },
+  { x: 15, y: 70, label: 'Transport', category: 'Travel', color: 'bg-surface-container-lowest' },
+  { x: 85, y: 75, label: 'Other', category: 'Other', color: 'bg-surface-container-lowest' },
 ]
 
 const CLUSTER_CONNECTIONS = [
@@ -37,7 +37,56 @@ export default function Dashboard() {
   const { data: anomalies } = useQuery({ queryKey: ['anomalies'], queryFn: () => getAnomalies({ limit: 5 }) })
   const { data: transactions } = useQuery({ queryKey: ['transactions'], queryFn: () => getTransactions({ limit: 100 }) })
   const { data: spendByDay } = useQuery({ queryKey: ['spend-by-day'], queryFn: () => getSpendingByDay(14) })
-  const chartData = Array.isArray(spendByDay) ? spendByDay : []
+  const { data: spendByCategory } = useQuery({ queryKey: ['spend-by-category'], queryFn: getSpendingByCategory })
+
+  const chartData = useMemo(() => {
+    if (!Array.isArray(spendByDay) || spendByDay.length === 0) return []
+    const sorted = [...spendByDay].sort((a: any, b: any) => {
+      const da = a.day || a.date || ''
+      const db = b.day || b.date || ''
+      return da.localeCompare(db)
+    })
+    const limited = sorted.slice(-14)
+    return limited.map((d: any) => ({
+      date: d.day || d.date,
+      total: d.amount || d.total || 0,
+    }))
+  }, [spendByDay])
+
+  const categorySpending = useMemo(() => {
+    if (!Array.isArray(spendByCategory)) return {}
+    const map: Record<string, number> = {}
+    for (const item of spendByCategory) {
+      map[item.category] = item.total
+    }
+    return map
+  }, [spendByCategory])
+
+  const maxSpending = useMemo(() => {
+    const values = Object.values(categorySpending)
+    return values.length > 0 ? Math.max(...values, 1) : 1
+  }, [categorySpending])
+
+  const categoryAnomalyCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    if (anomalies) {
+      for (const a of anomalies) {
+        const cat = a.category || 'Other'
+        counts[cat] = (counts[cat] || 0) + 1
+      }
+    }
+    return counts
+  }, [anomalies])
+
+  const clusters = useMemo(() => {
+    return CLUSTER_DEFS.map((def) => {
+      const spend = categorySpending[def.category] || 0
+      const anomCount = categoryAnomalyCounts[def.category] || 0
+      const normalizedSize = spend / maxSpending
+      const sizeClass = normalizedSize > 0.5 ? 'lg' : normalizedSize > 0.2 ? 'md' : 'sm'
+      return { ...def, spend, anomalies: anomCount, size: sizeClass }
+    })
+  }, [categorySpending, categoryAnomalyCounts, maxSpending])
 
   const txnCount = transactions?.length || 0
   const anomalyCount = anomalies?.length || 0
@@ -45,12 +94,14 @@ export default function Dashboard() {
 
   const filteredAnomalies = anomalies?.filter((a) => {
     if (selectedCluster === null) return true
-    return SPENDING_CLUSTERS[selectedCluster]?.label.toLowerCase().includes(a.category?.toLowerCase() || '')
+    const cluster = clusters[selectedCluster]
+    if (!cluster) return false
+    return a.category === cluster.category || cluster.label.toLowerCase().includes(a.category?.toLowerCase() || '')
   })
 
-  const handleClusterClick = useCallback((idx: number) => {
+  const handleClusterClick = (idx: number) => {
     setSelectedCluster(selectedCluster === idx ? null : idx)
-  }, [selectedCluster])
+  }
 
   return (
     <div className="p-8">
@@ -59,7 +110,7 @@ export default function Dashboard() {
           <h1 className="font-display text-5xl font-bold uppercase tracking-tighter text-primary">Spending Overview</h1>
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-tertiary-fixed animate-pulse border border-primary" />
-            <span className="font-mono text-[10px] text-on-surface-variant uppercase">Last synced: 14:02:45 UTC</span>
+            <span className="font-mono text-[10px] text-on-surface-variant uppercase">Last synced: {new Date().toLocaleTimeString()}</span>
           </div>
         </motion.div>
 
@@ -68,7 +119,7 @@ export default function Dashboard() {
             { label: 'Total TX Volume', icon: 'swap_horiz', value: txnCount.toLocaleString('en-US'), change: '+12.4%', color: 'bg-primary', spark: [30, 45, 38, 52, 48, 65, 70, 55, 80, 72, 85, 90] },
             { label: 'Active Batches', icon: 'hub', value: batchCount.toString(), change: `${batchCount > 0 ? 'Active' : 'None'}`, color: 'bg-tertiary-fixed-dim', spark: [20, 15, 25, 30, 22, 35, 28, 40, 32, 45, 38, 50] },
             { label: 'Critical Anomalies', icon: 'warning', value: anomalyCount.toString().padStart(2, '0'), change: 'Requires attention', color: 'bg-error', urgent: true, spark: [1, 0, 2, 1, 3, 2, 4, 3, 5, 2, 4, 3] },
-            { label: 'Avg Transaction', icon: 'receipt', value: '142.50', unit: 'G', change: '', color: 'bg-primary', spark: [120, 135, 128, 145, 140, 155, 148, 160, 152, 165, 158, 170] },
+            { label: 'Avg Transaction', icon: 'receipt', value: txnCount > 0 ? (categorySpending.Food || 0).toFixed(2) : '—', unit: 'G', change: '', color: 'bg-primary', spark: [120, 135, 128, 145, 140, 155, 148, 160, 152, 165, 158, 170] },
           ].map((card, ci) => (
             <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: ci * 0.1 }}
               className={`bg-surface-container-lowest border-[3px] border-primary p-4 relative shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] transition-all cursor-default ${card.urgent ? 'bg-error-container' : ''}`}>
@@ -157,8 +208,8 @@ export default function Dashboard() {
               <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
               <svg className="absolute inset-0 w-full h-full pointer-events-none">
                 {CLUSTER_CONNECTIONS.map((p, i) => {
-                  const f = SPENDING_CLUSTERS[p.from]
-                  const t = SPENDING_CLUSTERS[p.to]
+                  const f = clusters[p.from]
+                  const t = clusters[p.to]
                   return (
                     <path key={i} d={`M${f.x},${f.y} L${t.x},${t.y}`}
                       fill="none" stroke="#3a3c3c" strokeWidth="1" strokeDasharray="4 4" opacity="0.4">
@@ -167,7 +218,7 @@ export default function Dashboard() {
                   )
                 })}
                 <g>
-                  {SPENDING_CLUSTERS.map((c, i) => (
+                  {clusters.map((c, i) => (
                     <circle key={`anom-${i}`} cx={c.x} cy={c.y} r={c.anomalies > 0 ? 12 : 0}
                       fill="none" stroke="#ba1a1a" strokeWidth="2" opacity={0.6}>
                       {c.anomalies > 0 && <animate attributeName="r" dur="1.5s" from="12" repeatCount="indefinite" to="18" />}
@@ -176,7 +227,7 @@ export default function Dashboard() {
                   ))}
                 </g>
               </svg>
-              {SPENDING_CLUSTERS.map((c, i) => {
+              {clusters.map((c, i) => {
                 const visible = activeFilter === 'All' || c.label.toLowerCase().includes(activeFilter.toLowerCase())
                 if (!visible) return null
                 const isSelected = selectedCluster === i
@@ -185,7 +236,7 @@ export default function Dashboard() {
                     className="absolute flex flex-col items-center group cursor-pointer z-10"
                     style={{ top: `${c.y}%`, left: `${c.x}%`, transform: 'translate(-50%, -50%)' }}>
                     {c.anomalies > 0 && <div className="absolute w-10 h-10 bg-error animate-ping opacity-20" style={{ borderRadius: '50%' }} />}
-                    <div className={`${c.size === 'lg' ? 'w-12 h-12' : c.size === 'md' ? 'w-10 h-10' : 'w-8 h-8'} ${c.color} border-[3px] border-primary relative z-10 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center ${c.anomalies > 0 ? 'animate-pulse' : ''} ${isSelected ? 'ring-4 ring-secondary-container scale-110' : ''} hover:scale-110 transition-all`}
+                    <div className={`${c.size === 'lg' ? 'w-14 h-14' : c.size === 'md' ? 'w-11 h-11' : 'w-9 h-9'} ${c.color} border-[3px] border-primary relative z-10 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center ${c.anomalies > 0 ? 'animate-pulse' : ''} ${isSelected ? 'ring-4 ring-secondary-container scale-110' : ''} hover:scale-110 transition-all`}
                       style={{ borderRadius: c.size === 'lg' ? '4px' : '50%' }}>
                       {c.anomalies > 0 ? (
                         <span className="material-symbols-outlined text-sm text-error" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
@@ -195,6 +246,7 @@ export default function Dashboard() {
                     </div>
                     <div className={`${isSelected ? 'bg-secondary-container text-on-secondary-container shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]' : 'bg-primary text-on-primary'} font-mono text-[10px] px-2 py-1 mt-2 border-2 border-primary whitespace-nowrap absolute top-full transition-all z-20`}>
                       {c.label}
+                      <span className="ml-1 text-tertiary-fixed">{c.spend.toFixed(0)}G</span>
                       {c.anomalies > 0 && <span className="ml-1 text-error">({c.anomalies})</span>}
                     </div>
                   </div>
@@ -220,7 +272,7 @@ export default function Dashboard() {
           <div className="w-full lg:w-96 bg-surface-container border-[3px] border-primary shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] flex flex-col h-[600px] shrink-0">
             <div className="bg-primary text-on-primary px-4 py-2 border-b-[3px] border-primary shrink-0 flex justify-between items-center">
               <span className="font-display text-lg font-bold tracking-tight uppercase">
-                {selectedCluster !== null ? `${SPENDING_CLUSTERS[selectedCluster].label}` : 'Anomaly Feed'}
+                {selectedCluster !== null ? `${clusters[selectedCluster].label}` : 'Anomaly Feed'}
               </span>
               <div className="flex gap-1 items-center">
                 <div className="w-2 h-2 bg-error animate-pulse" />
