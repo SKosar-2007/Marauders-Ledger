@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { getBatches, getAnomalies, getTransactions, getSpendingByDay, getSpendingByCategory, SEVERITY_CONFIG, type NarrativeSeverity } from '../api/client'
+import { getBatches, getAnomalies, getTransactions, getSpendingByDay, getSpendingByCategory, VALIDATION_CONFIG, type ValidationStatus } from '../api/client'
 import { MiniSparkline } from '../components/ui'
 
 const CATEGORIES = ['All', 'Food', 'Shopping', 'Bills', 'Transport', 'Entertainment', 'Other']
@@ -22,11 +22,8 @@ const CLUSTER_CONNECTIONS = [
   { from: 4, to: 5 }, { from: 5, to: 0 }, { from: 1, to: 3 }, { from: 0, to: 2 },
 ]
 
-function getSeverity(score?: number): NarrativeSeverity {
-  if (!score || score < 30) return 'low'
-  if (score < 60) return 'medium'
-  if (score < 80) return 'high'
-  return 'critical'
+function getValidation(score?: number): ValidationStatus {
+  return (score ?? 0) >= 50 ? 'fraud' : 'valid'
 }
 
 export default function Dashboard() {
@@ -281,8 +278,8 @@ export default function Dashboard() {
             </div>
             <div className="flex-1 overflow-y-auto bg-surface-bright p-3 space-y-2">
               {filteredAnomalies && filteredAnomalies.length > 0 ? filteredAnomalies.map((a) => {
-                const sev = getSeverity(a.score)
-                const cfg = SEVERITY_CONFIG[sev]
+                const validation = getValidation(a.score)
+                const cfg = VALIDATION_CONFIG[validation]
                 return (
                   <motion.div key={a.anomaly_id} onClick={() => navigate(`/anomaly/${a.anomaly_id}`)}
                     className="border-[3px] border-primary bg-surface-container-lowest p-3 cursor-pointer hover:translate-x-[-1px] hover:translate-y-[-1px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all group"
