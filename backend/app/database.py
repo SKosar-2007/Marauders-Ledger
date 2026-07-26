@@ -49,6 +49,7 @@ def _get_auth_conn() -> sqlite3.Connection:
 
 def init_db():
     _get_auth_conn()
+    import time
     # Try to initialize VectorAI (Actian) as primary; if it fails we'll use SQLite fallback
     try:
         vector_store.init_vector_store()
@@ -57,8 +58,10 @@ def init_db():
         pass
     if vector_store.is_vectorai_available():
         print("Database: Actian VectorAI PRIMARY — SQLite for auth only")
+        time.sleep(3)
     else:
         print("Database: VectorAI unavailable — using SQLite fallback for vector data")
+    _seed_test_data()
 
 
 # ── User operations (always SQLite, thread-safe) ──
@@ -238,3 +241,88 @@ def hybrid_search_transactions(
 
 def search_narratives(query_text: str, limit: int = 20):
     return vector_store.search_narratives(query_text=query_text, limit=limit)
+
+
+def _delete_test_user_data(user_id: int):
+    from app import vector_store as vs
+    if vs.is_vectorai_available():
+        try:
+            vs._ensure_filter_imports()
+            if vs._FilterBuilder:
+                filt_txns = vs._FilterBuilder().must(vs._Field("user_id").eq(user_id)).build()
+                vs._client.points.delete("transactions", filter=filt_txns)
+                filt_anom = vs._FilterBuilder().must(vs._Field("user_id").eq(user_id)).build()
+                vs._client.points.delete("anomalies", filter=filt_anom)
+        except Exception:
+            pass
+    else:
+        conn = _get_fallback_conn()
+        with _auth_lock:
+            conn.execute("DELETE FROM vector_transactions WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM vector_anomalies WHERE user_id = ?", (user_id,))
+            conn.commit()
+    with _auth_lock:
+        conn = _get_auth_conn()
+        conn.execute("DELETE FROM batches WHERE user_id = ?", (user_id,))
+        conn.commit()
+
+
+# ── Test data seeding ──
+
+def _seed_test_data():
+    from app.auth import hash_password
+
+    TEST_EMAIL = "test@test.com"
+    TEST_PASSWORD = "test123"
+    TEST_NAME = "Test User"
+
+    existing = get_user_by_email(TEST_EMAIL)
+    if existing:
+        _delete_test_user_data(existing["user_id"])
+        with _auth_lock:
+            conn = _get_auth_conn()
+            conn.execute("DELETE FROM users WHERE email = ?", (TEST_EMAIL,))
+            conn.commit()
+    uid = create_user(TEST_EMAIL, TEST_NAME, hash_password(TEST_PASSWORD))
+    print(f"Seeded test user: {TEST_EMAIL} (id={uid})")
+
+    batch_id = create_upload_batch(uid, 20)
+
+    sample_txns = [
+        {"amount": 24.99, "category": "Food", "merchant": "Starbucks", "hour": 8, "day": 1, "timestamp": "2026-07-01 08:15:00"},
+        {"amount": 142.50, "category": "Groceries", "merchant": "Whole Foods", "hour": 18, "day": 1, "timestamp": "2026-07-01 18:30:00"},
+        {"amount": 9.99, "category": "Entertainment", "merchant": "Netflix", "hour": 20, "day": 1, "timestamp": "2026-07-01 20:00:00"},
+        {"amount": 55.00, "category": "Transport", "merchant": "Uber", "hour": 22, "day": 1, "timestamp": "2026-07-01 22:10:00"},
+        {"amount": 320.00, "category": "Shopping", "merchant": "Amazon", "hour": 14, "day": 2, "timestamp": "2026-07-02 14:00:00"},
+        {"amount": 18.75, "category": "Food", "merchant": "Chipotle", "hour": 12, "day": 2, "timestamp": "2026-07-02 12:30:00"},
+        {"amount": 89.99, "category": "Bills", "merchant": "Verizon", "hour": 10, "day": 3, "timestamp": "2026-07-03 10:00:00"},
+        {"amount": 15.00, "category": "Entertainment", "merchant": "Spotify", "hour": 9, "day": 3, "timestamp": "2026-07-03 09:00:00"},
+        {"amount": 67.50, "category": "Groceries", "merchant": "Trader Joes", "hour": 17, "day": 4, "timestamp": "2026-07-04 17:45:00"},
+        {"amount": 12.99, "category": "Food", "merchant": "Dominos", "hour": 19, "day": 4, "timestamp": "2026-07-04 19:20:00"},
+        {"amount": 45.00, "category": "Transport", "merchant": "Lyft", "hour": 23, "day": 5, "timestamp": "2026-07-05 23:05:00"},
+        {"amount": 210.00, "category": "Shopping", "merchant": "Target", "hour": 15, "day": 5, "timestamp": "2026-07-05 15:30:00"},
+        {"amount": 8.50, "category": "Food", "merchant": "Starbucks", "hour": 7, "day": 6, "timestamp": "2026-07-06 07:45:00"},
+        {"amount": 99.00, "category": "Entertainment", "merchant": "AMC Theatres", "hour": 21, "day": 6, "timestamp": "2026-07-06 21:00:00"},
+        {"amount": 175.00, "category": "Bills", "merchant": "Electric Co", "hour": 10, "day": 7, "timestamp": "2026-07-07 10:00:00"},
+        # anomalous spikes
+        {"amount": 4999.99, "category": "Shopping", "merchant": "Unknown Vendor", "hour": 3, "day": 3, "timestamp": "2026-07-03 03:15:00"},
+        {"amount": 2750.00, "category": "Travel", "merchant": "CryptoExchange", "hour": 2, "day": 5, "timestamp": "2026-07-05 02:30:00"},
+        {"amount": 1500.00, "category": "Entertainment", "merchant": "Offshore Casino", "hour": 1, "day": 6, "timestamp": "2026-07-06 01:00:00"},
+        {"amount": 890.00, "category": "Food", "merchant": "Luxury Dining", "hour": 23, "day": 4, "timestamp": "2026-07-04 23:45:00"},
+        {"amount": 3200.00, "category": "Bills", "merchant": "Shell Company LLC", "hour": 4, "day": 7, "timestamp": "2026-07-07 04:00:00"},
+    ]
+
+    txn_ids = vector_store.insert_transactions(sample_txns, uid, batch_id)
+    update_batch_status(batch_id, "completed")
+    print(f"Seeded {len(txn_ids)} transactions for test user (batch={batch_id})")
+
+    sample_anomalies = [
+        {"txn_id": txn_ids[15], "amount": 4999.99, "category": "Shopping", "merchant": "Unknown Vendor", "hour": 3, "day": 3, "isolation_score": 0.95, "rule_score": 0.9, "final_score": 0.93, "is_anomaly": True, "severity": "critical", "triggered_rules": ["large_amount", "unusual_merchant", "unusual_hour"], "status": "pending"},
+        {"txn_id": txn_ids[16], "amount": 2750.00, "category": "Travel", "merchant": "CryptoExchange", "hour": 2, "day": 5, "isolation_score": 0.88, "rule_score": 0.85, "final_score": 0.87, "is_anomaly": True, "severity": "high", "triggered_rules": ["large_amount", "suspicious_category"], "status": "pending"},
+        {"txn_id": txn_ids[17], "amount": 1500.00, "category": "Entertainment", "merchant": "Offshore Casino", "hour": 1, "day": 6, "isolation_score": 0.82, "rule_score": 0.78, "final_score": 0.80, "is_anomaly": True, "severity": "high", "triggered_rules": ["unusual_hour", "unusual_merchant"], "status": "pending"},
+        {"txn_id": txn_ids[18], "amount": 890.00, "category": "Food", "merchant": "Luxury Dining", "hour": 23, "day": 4, "isolation_score": 0.70, "rule_score": 0.65, "final_score": 0.68, "is_anomaly": True, "severity": "medium", "triggered_rules": ["large_amount", "unusual_hour"], "status": "pending"},
+        {"txn_id": txn_ids[19], "amount": 3200.00, "category": "Bills", "merchant": "Shell Company LLC", "hour": 4, "day": 7, "isolation_score": 0.91, "rule_score": 0.88, "final_score": 0.90, "is_anomaly": True, "severity": "critical", "triggered_rules": ["large_amount", "unusual_merchant", "unusual_hour", "suspicious_category"], "status": "valid"},
+    ]
+
+    anomaly_ids = vector_store.insert_anomalies(sample_anomalies, uid)
+    print(f"Seeded {len(anomaly_ids)} anomalies for test user")

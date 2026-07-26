@@ -23,7 +23,10 @@ const CLUSTER_CONNECTIONS = [
 ]
 
 function getSeverity(score?: number): NarrativeSeverity {
-  return (score ?? 0) >= 50 ? 'fraud' : 'valid'
+  if (!score || score < 30) return 'low'
+  if (score < 60) return 'medium'
+  if (score < 80) return 'high'
+  return 'critical'
 }
 
 export default function Dashboard() {

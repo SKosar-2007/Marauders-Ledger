@@ -10,9 +10,12 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 import pandas as pd
+from pathlib import Path
+
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app.auth import (
@@ -231,16 +234,26 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
         from app.tasks import process_upload
         process_upload.delay(batch_id, user_id)
     except Exception:
-        print("Celery unavailable — processing synchronously")
-        from app.inference import detect_anomalies
-        from app.database import update_batch_status
-        results = await asyncio.to_thread(detect_anomalies, txns)
-        anomalies = [r for r in results if r["is_anomaly"]]
-        if anomalies:
-            await asyncio.to_thread(insert_anomalies, anomalies, user_id)
-        await asyncio.to_thread(update_batch_status, batch_id, "completed")
+        print("Celery unavailable — processing in background thread")
+        def _bg_process():
+            try:
+                from app.inference import detect_anomalies
+                from app.database import update_batch_status
+                results = detect_anomalies(txns)
+                anomalies = [r for r in results if r["is_anomaly"]]
+                if anomalies:
+                    insert_anomalies(anomalies, user_id)
+                update_batch_status(batch_id, "completed")
+            except Exception as e:
+                print(f"Background processing failed: {e}")
+                from app.database import update_batch_status
+                update_batch_status(batch_id, "failed")
+        threading.Thread(target=_bg_process, daemon=True).start()
 
-    await asyncio.to_thread(trigger_superplane, batch_id, user_id)
+    try:
+        await asyncio.to_thread(trigger_superplane, batch_id, user_id)
+    except Exception:
+        pass
 
     return BatchResponse(batch_id=batch_id, status="processing", txn_count=len(txn_ids))
 
@@ -592,3 +605,17 @@ async def search_api_narratives(body: NarrativeSearchQuery, current_user: dict =
         for r in results
     ]
     return SearchResults(items=items, total=len(items))
+
+
+# ── Static Frontend ──
+
+_STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+if _STATIC_DIR.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(_STATIC_DIR / "assets")), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        file_path = _STATIC_DIR / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_STATIC_DIR / "index.html"))
