@@ -14,8 +14,6 @@ export default function VoiceChatWidget() {
     isSpeaking,
     isProcessing,
     interimTranscript,
-    startListening,
-    stopListening,
     sendText,
     toggleListening,
     isSupported,

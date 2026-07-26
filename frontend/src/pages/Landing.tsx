@@ -17,9 +17,9 @@ export default function Landing() {
 
   const handleFileUpload = async (file: File) => {
     try {
-      const result = await uploadMutation.mutateAsync(file)
+      const result = await uploadMutation.mutateAsync(file) as { batch_id: string; anomalies_found?: number }
       setBatchId(result.batch_id)
-      showToast(`Mischief managed! ${result.anomalies_found} anomalies detected.`, 'success')
+      showToast(`Mischief managed! ${result.anomalies_found ?? 'some'} anomalies detected.`, 'success')
       navigate('/dashboard')
     } catch {
       showToast('The spell failed. Please check your CSV format.', 'error')

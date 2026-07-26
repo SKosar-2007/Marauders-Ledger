@@ -34,56 +34,6 @@ export function useVoiceChat(): UseVoiceChatReturn {
   const isSupported = typeof window !== 'undefined' &&
     ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
-  const playAudioStream = useCallback(async (responseText: string) => {
-    setIsSpeaking(true)
-    audioQueueRef.current = []
-    isPlayingRef.current = false
-    abortRef.current = false
-
-    try {
-      const token = localStorage.getItem('marauders_token')
-      const resp = await fetch('/api/chat/message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          message: responseText,
-          history: messages.slice(-10).map(m => ({ role: m.role, text: m.text })),
-        }),
-      })
-
-      if (!resp.ok) throw new Error(`Chat request failed: ${resp.status}`)
-
-      const reader = resp.body!.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (abortRef.current) {
-          reader.cancel()
-          break
-        }
-
-        audioQueueRef.current.push(value.buffer)
-
-        if (!isPlayingRef.current) {
-          isPlayingRef.current = true
-          playQueue()
-        }
-      }
-    } catch (err) {
-      console.error('Voice chat error:', err)
-    } finally {
-      if (!isPlayingRef.current) {
-        setIsSpeaking(false)
-      }
-    }
-  }, [messages])
-
   const playQueue = useCallback(async () => {
     const audioContext = audioContextRef.current || new AudioContext()
     audioContextRef.current = audioContext
