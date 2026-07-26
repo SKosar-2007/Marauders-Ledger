@@ -21,15 +21,7 @@ const Vault = lazy(() => import('./pages/Vault'))
 const Pensieve = lazy(() => import('./pages/Pensieve'))
 const OwlPost = lazy(() => import('./pages/OwlPost'))
 const Profile = lazy(() => import('./pages/Profile'))
-const DailyProphet = lazy(() => import('./pages/DailyProphet'))
-const Owlry = lazy(() => import('./pages/Owlry'))
-const RestrictedSection = lazy(() => import('./pages/RestrictedSection'))
-const PatronusRegistry = lazy(() => import('./pages/PatronusRegistry'))
-const OEA = lazy(() => import('./pages/OEA'))
-const RoomOfWorkspace = lazy(() => import('./pages/RoomOfWorkspace'))
 const AdminSettings = lazy(() => import('./pages/AdminSettings'))
-const GreatHall = lazy(() => import('./pages/GreatHall'))
-const DuelingArena = lazy(() => import('./pages/DuelingArena'))
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -67,15 +59,7 @@ function AnimatedRoutes() {
           <Route path="/pensieve" element={<ProtectedRoute><Pensieve /></ProtectedRoute>} />
           <Route path="/owl-post" element={<ProtectedRoute><OwlPost /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/daily-prophet" element={<ProtectedRoute><DailyProphet /></ProtectedRoute>} />
-          <Route path="/owlry" element={<ProtectedRoute><Owlry /></ProtectedRoute>} />
-          <Route path="/restricted-section" element={<ProtectedRoute><RestrictedSection /></ProtectedRoute>} />
-          <Route path="/patronus-registry" element={<ProtectedRoute><PatronusRegistry /></ProtectedRoute>} />
-          <Route path="/oea" element={<ProtectedRoute><OEA /></ProtectedRoute>} />
-          <Route path="/room-of-requirement" element={<ProtectedRoute><RoomOfWorkspace /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminSettings /></ProtectedRoute>} />
-          <Route path="/great-hall" element={<ProtectedRoute><GreatHall /></ProtectedRoute>} />
-          <Route path="/dueling-arena" element={<ProtectedRoute><DuelingArena /></ProtectedRoute>} />
         </Routes>
       </AnimatePresence>
     </Suspense>

@@ -8,16 +8,8 @@ const COMMANDS = [
   { path: '/ledger', icon: 'list', label: 'Ledger', shortcut: 'g l' },
   { path: '/vault', icon: 'account_balance', label: 'Vault', shortcut: 'g v' },
   { path: '/pensieve', icon: 'science', label: 'Pensieve', shortcut: 'g p' },
-  { path: '/daily-prophet', icon: 'newspaper', label: 'Prophet', shortcut: 'g r' },
-  { path: '/owlry', icon: 'pets', label: 'Owlry', shortcut: 'g o' },
-  { path: '/great-hall', icon: 'groups', label: 'Great Hall', shortcut: 'g g' },
   { path: '/owl-post', icon: 'mail', label: 'Owl Post', shortcut: 'g w' },
-  { path: '/patronus-registry', icon: 'shield', label: 'Registry', shortcut: 'g e' },
-  { path: '/restricted-section', icon: 'lock', label: 'Security', shortcut: 'g s' },
-  { path: '/oea', icon: 'monitoring', label: 'O.E.A.', shortcut: 'g d' },
-  { path: '/room-of-requirement', icon: 'dashboard', label: 'Workspace', shortcut: 'g b' },
   { path: '/admin', icon: 'settings', label: 'Settings', shortcut: 'g ,' },
-  { path: '/dueling-arena', icon: 'sports_martial_arts', label: 'Arena', shortcut: 'g a' },
   { path: '/profile', icon: 'person', label: 'Profile', shortcut: 'g u' },
 ]
 

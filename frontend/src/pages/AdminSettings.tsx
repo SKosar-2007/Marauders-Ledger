@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
@@ -6,8 +6,18 @@ import { useAnomalies } from '../hooks/useAnomalies'
 
 export default function AdminSettings() {
   const { data: anomalies = [] } = useAnomalies()
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('theme') === 'dark'
+    }
+    return false
+  })
   const [parchmentAge, setParchmentAge] = useState(50)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode)
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   const highCount = anomalies.filter((a) => a.severity === 'high').length
   const medCount = anomalies.filter((a) => a.severity === 'medium').length

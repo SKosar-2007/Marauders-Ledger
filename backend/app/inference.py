@@ -153,7 +153,7 @@ def engineer_features(df: pd.DataFrame, fit_stats: Optional[dict] = None) -> pd.
 
     df["amount_zscore"] = ((df["amount"] - df["cat_mean"]) / df["cat_std"].clip(lower=1))
     df["amount_cat_ratio"] = df["amount"] / df["cat_mean"].clip(lower=1)
-    df["txn_frequency_24h"] = 1
+    df["txn_frequency_24h"] = df.groupby("merchant")["amount"].transform("count").clip(upper=48)
 
     if "timestamp" in df.columns and pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
         diffs = df["timestamp"].diff()
@@ -161,7 +161,8 @@ def engineer_features(df: pd.DataFrame, fit_stats: Optional[dict] = None) -> pd.
     else:
         df["days_since_last_txn"] = 7.0
 
-    df["is_amount_extreme"] = (df["amount"] > df["amount"].quantile(0.95)).astype(int)
+    extreme_threshold = fit_stats.get("iqr_upper", df["amount"].quantile(0.95)) if fit_stats else df["amount"].quantile(0.95)
+    df["is_amount_extreme"] = (df["amount"] > extreme_threshold).astype(int)
 
     if fit_stats and fit_stats.get("rolling_mean") is not None:
         df["rolling_7d_mean"] = fit_stats["rolling_mean"]
@@ -186,7 +187,7 @@ def engineer_features(df: pd.DataFrame, fit_stats: Optional[dict] = None) -> pd.
     iqr_upper = fit_stats.get("iqr_upper", df["amount"].quantile(0.75) + 300) if fit_stats else df["amount"].quantile(0.75) + 1.5 * (df["amount"].quantile(0.75) - df["amount"].quantile(0.25))
     df["is_amount_outlier_iqr"] = ((df["amount"] < iqr_lower) | (df["amount"] > iqr_upper)).astype(int)
 
-    df["txn_velocity_1h"] = 1
+    df["txn_velocity_1h"] = df.groupby(["hour", "merchant"])["amount"].transform("count").clip(upper=12)
     df["amount_to_global_mean_ratio"] = df["amount"] / fit_stats["global_mean"] if fit_stats else df["amount"] / df["amount"].mean()
     df["category_merchant_diversity"] = df.groupby("category")["merchant"].transform("nunique")
 

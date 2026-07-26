@@ -8,16 +8,8 @@ const NAV_ITEMS = [
   { path: '/ledger', icon: 'list', label: 'Ledger' },
   { path: '/vault', icon: 'account_balance', label: 'Vault' },
   { path: '/pensieve', icon: 'science', label: 'Pensieve' },
-  { path: '/daily-prophet', icon: 'newspaper', label: 'Prophet' },
-  { path: '/owlry', icon: 'pets', label: 'Owlry' },
-  { path: '/great-hall', icon: 'groups', label: 'Great Hall' },
   { path: '/owl-post', icon: 'mail', label: 'Owl Post' },
-  { path: '/patronus-registry', icon: 'shield', label: 'Registry' },
-  { path: '/restricted-section', icon: 'lock', label: 'Security' },
-  { path: '/oea', icon: 'monitoring', label: 'O.E.A.' },
-  { path: '/room-of-requirement', icon: 'dashboard', label: 'Workspace' },
   { path: '/admin', icon: 'settings', label: 'Settings' },
-  { path: '/dueling-arena', icon: 'sports_martial_arts', label: 'Arena' },
   { path: '/profile', icon: 'person', label: 'Profile' },
 ]
 

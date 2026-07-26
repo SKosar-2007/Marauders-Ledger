@@ -75,6 +75,8 @@ _rate_limit_store: dict[str, list[float]] = defaultdict(list)
 _rate_limit_lock = threading.Lock()
 RATE_LIMIT_WINDOW = 60  # seconds
 RATE_LIMIT_MAX_REQUESTS = 30  # per window per IP
+RATE_LIMIT_CLEANUP_INTERVAL = 300  # cleanup stale entries every 5 minutes
+_last_rate_limit_cleanup: float = time.time()
 
 _narrative_locks: dict[int, threading.Lock] = {}
 _narrative_locks_lock = threading.Lock()
@@ -88,12 +90,17 @@ def _get_narrative_lock(anomaly_id: int) -> threading.Lock:
 
 
 def _check_rate_limit(ip: str) -> bool:
+    global _last_rate_limit_cleanup
     now = time.time()
     with _rate_limit_lock:
         _rate_limit_store[ip] = [t for t in _rate_limit_store[ip] if now - t < RATE_LIMIT_WINDOW]
         if len(_rate_limit_store[ip]) >= RATE_LIMIT_MAX_REQUESTS:
             return False
         _rate_limit_store[ip].append(now)
+        if now - _last_rate_limit_cleanup > RATE_LIMIT_CLEANUP_INTERVAL:
+            cutoff = now - RATE_LIMIT_WINDOW
+            _rate_limit_store = {k: v for k, v in _rate_limit_store.items() if v and v[-1] > cutoff}
+            _last_rate_limit_cleanup = now
         return True
 
 
@@ -202,7 +209,18 @@ async def upload_csv(file: UploadFile = File(...), current_user: dict = Depends(
     batch_id = await asyncio.to_thread(create_upload_batch, user_id, len(txns))
     txn_ids = await asyncio.to_thread(insert_transactions, txns, user_id, batch_id)
 
-    process_upload.delay(batch_id, user_id)
+    try:
+        from app.tasks import process_upload
+        process_upload.delay(batch_id, user_id)
+    except Exception:
+        print("Celery unavailable — processing synchronously")
+        from app.inference import detect_anomalies
+        from app.database import update_batch_status
+        results = await asyncio.to_thread(detect_anomalies, txns)
+        anomalies = [r for r in results if r["is_anomaly"]]
+        if anomalies:
+            await asyncio.to_thread(insert_anomalies, anomalies, user_id)
+        await asyncio.to_thread(update_batch_status, batch_id, "completed")
 
     return BatchResponse(batch_id=batch_id, status="processing", txn_count=len(txn_ids))
 
