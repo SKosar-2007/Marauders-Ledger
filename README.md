@@ -1,89 +1,86 @@
 # OmniLedger
 
-An AI-powered financial anomaly detection system. Upload transaction data — Isolation Forest scores every line, Gemini narrates each anomaly, ElevenLabs reads them aloud.
+OmniLedger is an AI-powered financial anomaly investigation platform built around Actian VectorAI. Users upload transaction histories, receive ML-based anomaly detection, explore findings in a dashboard, and search transactions or anomalies with semantic, filtered, and hybrid retrieval.
 
-## Live Demo
+## What it does
 
-1. Open [http://localhost:5173](http://localhost:5173)
-2. Drag & drop a CSV onto the upload zone
-3. View the cluster map with detected anomalies
-4. Click any anomaly to investigate — get AI narration + voice
+- Uploads CSV transaction data and runs an anomaly detection pipeline.
+- Highlights suspicious transactions with severity, context, and AI-generated narratives.
+- Lets users investigate anomalies through a visual dashboard and voice chat experience.
+- Uses Actian VectorAI for intelligent search over transactions, anomalies, and narratives.
+
+## Why we built it
+
+The goal was to turn raw financial data into an interactive investigation experience while showing how modern vector search can power retrieval over structured financial records. The project combines anomaly detection with retrieval features that are directly relevant to the Actian track.
+
+## How Actian VectorAI is used
+
+- Stores and retrieves transaction, anomaly, and narrative embeddings.
+- Supports named vectors for different search modes, including semantic and numerical representations.
+- Powers filtered vector search for structured filters like category, merchant, amount, severity, status, and batch.
+- Enables hybrid fusion that combines semantic similarity with keyword-style matching for stronger ranking.
+
+## Demo
+
+A working demo can be launched locally with Docker:
+
+```bash
+docker compose up --build
+```
+
+Then open the app at http://localhost:8000 (or the deployed judge URL if using the production setup).
+
+## Actian Track Submission Requirements
+
+- Public GitHub repository with a README: Yes
+- Working demo (video, Loom, or live link): Add your demo link or recording in the submission notes
+- Brief write-up: What it does, why it was built, and how VectorAI DB is used: Covered below
+
+## Eligibility for the Actian Track
+
+This project is eligible because it implements the following Actian-style capabilities:
+
+- Hybrid Fusion — implemented through the hybrid search endpoint, combining semantic vector similarity with keyword-style matching.
+- Filtered Search — implemented through transaction and anomaly search endpoints that combine vector search with structured filters such as category, merchant, amount, severity, status, and batch.
+- Named Vectors — supported in the backend vector store configuration using named vector setups for semantic and numerical search.
+
+Bonus: local deployment is also supported through Docker Compose.
 
 ## Architecture
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   React 19  │────▶│  FastAPI     │────▶│  ML Models  │
-│   + Vite    │     │  Python 3.9  │     │  (Ensemble) │
-│   + Tailwind│     │              │     │  RF+GB+IF+  │
-└─────────────┘     └─────────────┘     │  LOF+OCSVM  │
-                                        └─────────────┘
-                                              │
-                        ┌─────────────┐       │
-                        │  In-Memory  │◀──────┘
-                        │  Database   │
-                        └─────────────┘
-                               │
-                  ┌────────────┼────────────┐
-                  ▼            ▼            ▼
-            ┌──────────┐ ┌──────────┐ ┌──────────┐
-            │  Gemini  │ │ ElevenLabs│ │ Fallback │
-            │  (NLG)   │ │  (TTS)   │ │ Narratives│
-            └──────────┘ └──────────┘ └──────────┘
+```text
+React + Vite Frontend
+  ↓
+FastAPI Backend
+  ↓
+ML Anomaly Detection
+  ↓
+Actian VectorAI / SQLite fallback
+  ↓
+Gemini + ElevenLabs AI narration
 ```
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, TypeScript, Vite 8, Tailwind CSS v4 |
-| Animations | Framer Motion |
-| Charts | Recharts |
-| State | TanStack Query, React Context |
-| Backend | Python 3.9, FastAPI |
-| ML | scikit-learn, XGBoost, LightGBM |
-| AI Narratives | Gemini 2.0 Flash (with fallback) |
-| Voice | ElevenLabs TTS (with fallback) |
-
-## ML Model
-
-Ensemble of 7 anomaly detection models:
-- **Isolation Forest** — Unsupervised outlier detection
-- **Local Outlier Factor** — Density-based anomalies
-- **One-Class SVM** — Boundary learning
-- **Random Forest** — Supervised classification
-- **Gradient Boosting** — Supervised classification
-- **XGBoost** — High-performance gradient boosting
-- **LightGBM** — Fast gradient boosting
-
-**Performance:** F1 = 0.873 on test set
-
-## Pages
-
-| Route | Description |
-|-------|-------------|
-| `/` | Landing — upload CSV or load sample data |
-| `/dashboard` | Spending cluster map with anomaly feed |
-| `/anomaly/:id` | Detail — gauges, narrative, audio, tethered txns |
-| `/ledger` | Historical data table with search/filter |
-| `/vault` | Asset reserves overview |
-| `/analysis` | Deep analysis — spending categories, risk breakdown |
-| `/activity` | Activity feed with security events |
-| `/settings` | Workspace configuration |
+- Frontend: React, TypeScript, Vite
+- Backend: FastAPI, Python
+- ML: scikit-learn, XGBoost, LightGBM, and ensemble anomaly detection
+- AI: Gemini for narratives, ElevenLabs for audio
+- Data/Search: Actian VectorAI with vector search, filters, and hybrid ranking
 
 ## Quick Start
 
 ### Local Development
 
 ```bash
-# Backend
 cd backend
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
+```
 
-# Frontend (new terminal)
+```bash
 cd frontend
 npm install
 npm run dev
@@ -92,34 +89,21 @@ npm run dev
 ### Docker
 
 ```bash
-cp .env.example .env  # Add your API keys (optional)
 docker compose up --build
 ```
 
-### Environment Variables
+## Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `GEMINI_API_KEY` | No | Gemini AI for narrative generation (fallback provided) |
-| `ELEVENLABS_API_KEY` | No | ElevenLabs for voice narration (returns 501 if unset) |
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
-| POST | `/api/upload` | Upload CSV file |
-| POST | `/api/analyze?batch_id=` | Run ML inference |
-| GET | `/api/anomalies` | List all anomalies |
-| GET | `/api/anomalies/:id` | Get single anomaly |
-| GET | `/api/narratives/:id` | Get AI narrative |
-| GET | `/api/narratives/:id/audio` | Get voice narration |
+- GEMINI_API_KEY: Optional, used for AI narrative generation
+- ELEVENLABS_API_KEY: Optional, used for voice narration
+- VECTORAI_HOST: VectorAI host for deployment
+- VECTORAI_PORT: VectorAI port for deployment
 
 ## Sample Data
 
-- `data/normal.csv` — 50 clean transactions
-- `data/compromised.csv` — 50 transactions with 6 anomalies
-- `data/mixed.csv` — Mixed dataset for testing
+- data/normal.csv
+- data/compromised.csv
+- data/mixed.csv
 
 ## License
 
