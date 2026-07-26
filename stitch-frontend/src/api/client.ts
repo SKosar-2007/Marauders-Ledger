@@ -143,9 +143,9 @@ export async function getNarrativeAudio(anomalyId: number): Promise<Blob> {
   return data
 }
 
-export type ValidationStatus = 'valid' | 'fraud'
+export type NarrativeSeverity = 'valid' | 'fraud'
 
-export const VALIDATION_CONFIG: Record<ValidationStatus, { label: string; icon: string; color: string; bg: string }> = {
+export const SEVERITY_CONFIG: Record<NarrativeSeverity, { label: string; icon: string; color: string; bg: string }> = {
   valid: { label: 'Valid', icon: 'check_circle', color: 'text-tertiary-fixed', bg: 'bg-tertiary-fixed/20 border-tertiary-fixed' },
   fraud: { label: 'Fraud', icon: 'warning', color: 'text-error', bg: 'bg-error/20 border-error' },
 }
