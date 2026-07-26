@@ -61,6 +61,7 @@ export interface Anomaly {
 }
 
 function fromBackendAnomaly(raw: any): Anomaly {
+  const rawScore = raw.final_score ?? raw.score ?? 0
   return {
     anomaly_id: raw.anomaly_id,
     amount: raw.amount,
@@ -69,7 +70,7 @@ function fromBackendAnomaly(raw: any): Anomaly {
     timestamp: raw.detected_at || raw.timestamp || '',
     status: raw.status || 'pending',
     triggered_rules: Array.isArray(raw.triggered_rules) ? raw.triggered_rules : [],
-    score: raw.final_score ?? raw.score,
+    score: Math.round(rawScore * 100),
   }
 }
 
